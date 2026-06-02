@@ -1,0 +1,46 @@
+appId: com.schooladmin.widget
+productName: 학교행정 AI 위젯
+copyright: Copyright © 2026 신경수(담양남초)
+
+directories:
+  buildResources: resources
+  output: release
+
+files:
+  - dist-electron
+  - dist
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!electron.vite.config.*"
+  - "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
+
+asarUnpack:
+  - resources/**
+  - "**/*.node"
+
+win:
+  executableName: SchoolAdminWidget
+  icon: resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+
+nsis:
+  artifactName: SchoolAdminWidget-${version}-Setup.${ext}
+  shortcutName: 학교행정 AI 위젯
+  uninstallDisplayName: 학교행정 AI 위젯
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  installerLanguages:
+    - ko_KR
+  language: 1042
+
+publish:
+  provider: generic
+  url: https://example.com/updates/

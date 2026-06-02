@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>학교행정 AI 위젯</title>
+    <meta name="description" content="학교 행정실 AI 기반 업무 지원 데스크톱 위젯" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // 초기 테마 설정 (깜빡임 방지)
+      try {
+        const theme = localStorage.getItem('theme') || 'dark'
+        document.documentElement.className = theme
+      } catch(e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
