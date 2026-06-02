@@ -82,6 +82,13 @@ export default function Sidebar() {
           <Settings size={16} />
           <span>환경설정</span>
         </NavLink>
+        <div className="mt-4 px-3 text-center">
+          <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+            Developed by 신경수(담양남초)
+            <br />
+            © 2026. All Rights Reserved.
+          </p>
+        </div>
       </div>
     </aside>
   )

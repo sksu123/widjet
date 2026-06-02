@@ -41,5 +41,6 @@ nsis:
   language: 1042
 
 publish:
-  provider: generic
-  url: https://example.com/updates/
+  provider: github
+  owner: sksu123
+  repo: widjet
