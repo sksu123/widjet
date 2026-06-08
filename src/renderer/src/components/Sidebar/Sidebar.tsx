@@ -5,14 +5,14 @@ import {
 } from 'lucide-react'
 
 const navItems = [
-  { to: '/', icon: LayoutDashboard, label: '대시보드', color: '#3b82f6' },
+  { to: '/', icon: LayoutDashboard, label: '행정실 허브', color: '#3b82f6' },
   { to: '/ai', icon: Bot, label: 'AI 행정비서', color: '#8b5cf6' },
   { to: '/edufine', icon: BookOpen, label: 'K-에듀파인', color: '#14b8a6' },
   { to: '/calculator', icon: Calculator, label: '업무 계산기', color: '#f59e0b' },
   { to: '/calendar', icon: Calendar, label: '일정 관리', color: '#3b82f6' },
   { to: '/documents', icon: FileText, label: '문서 관리', color: '#10b981' },
   { to: '/card', icon: CreditCard, label: '법인카드', color: '#ec4899' },
-  { to: '/lost', icon: Package, label: '분실물 관리', color: '#f97316' },
+  { isExternal: true, href: 'https://sksu123-yeabi.vercel.app/', icon: Package, label: '여비정산신청서', color: '#f97316' },
   { to: '/automation', icon: Zap, label: '자동화 센터', color: '#06b6d4' },
   { to: '/voice', icon: Mic, label: 'AI 음성비서', color: '#a78bfa' },
 ]
@@ -30,43 +30,61 @@ export default function Sidebar() {
       {/* 네비게이션 */}
       <nav className="flex-1 px-2 space-y-0.5">
         <p className="section-title px-2 mb-2 mt-1">메뉴</p>
-        {navItems.map(({ to, icon: Icon, label, color }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={to === '/'}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative ${
-                isActive
-                  ? 'text-white'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5'
-              }`
-            }
-            style={({ isActive }) =>
-              isActive
-                ? {
-                    background: `linear-gradient(135deg, ${color}22, ${color}11)`,
-                    borderLeft: `2px solid ${color}`,
-                    paddingLeft: '10px'
-                  }
-                : {}
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon
-                  size={16}
-                  style={{ color: isActive ? color : undefined }}
-                  className={isActive ? '' : 'group-hover:text-white transition-colors'}
-                />
+        {navItems.map(({ to, isExternal, href, icon: Icon, label, color }) => {
+          if (isExternal) {
+            return (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative text-slate-400 hover:text-white hover:bg-white/5"
+              >
+                <Icon size={16} className="group-hover:text-white transition-colors" />
                 <span className="flex-1 truncate">{label}</span>
-                {isActive && (
-                  <ChevronRight size={12} style={{ color }} className="opacity-60" />
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
+                <span className="text-[10px] opacity-50 px-1 border border-slate-600 rounded">앱</span>
+              </a>
+            )
+          }
+
+          return (
+            <NavLink
+              key={to}
+              to={to!}
+              end={to === '/'}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative ${
+                  isActive
+                    ? 'text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`
+              }
+              style={({ isActive }) =>
+                isActive
+                  ? {
+                      background: `linear-gradient(135deg, ${color}22, ${color}11)`,
+                      borderLeft: `2px solid ${color}`,
+                      paddingLeft: '10px'
+                    }
+                  : {}
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    size={16}
+                    style={{ color: isActive ? color : undefined }}
+                    className={isActive ? '' : 'group-hover:text-white transition-colors'}
+                  />
+                  <span className="flex-1 truncate">{label}</span>
+                  {isActive && (
+                    <ChevronRight size={12} style={{ color }} className="opacity-60" />
+                  )}
+                </>
+              )}
+            </NavLink>
+          )
+        })}
       </nav>
 
       {/* 하단 설정 */}

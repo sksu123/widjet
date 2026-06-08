@@ -46,14 +46,19 @@ export function registerAiHandlers(): void {
     try {
       const ai = getGenAI()
       const model = ai.getGenerativeModel({
-        model: 'gemini-2.0-flash',
+        model: 'gemini-3.1-flash-lite',
         systemInstruction: SYSTEM_PROMPT
       })
 
-      const history = messages.slice(0, -1).map(m => ({
+      let history = messages.slice(0, -1).map(m => ({
         role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.content }]
       }))
+
+      // Gemini API는 첫 번째 기록이 반드시 'user'여야 합니다.
+      while (history.length > 0 && history[0].role !== 'user') {
+        history.shift()
+      }
 
       const chat = model.startChat({ history })
       const lastMsg = messages[messages.length - 1]
@@ -77,7 +82,7 @@ export function registerAiHandlers(): void {
   ipcMain.handle('ai:recommend-budget', async (_, data: { projectName: string; item: string; amount: number }) => {
     try {
       const ai = getGenAI()
-      const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: SYSTEM_PROMPT })
+      const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite', systemInstruction: SYSTEM_PROMPT })
       const prompt = `다음 지출 건에 대해 K-에듀파인 예산과목을 추천해주세요:
 사업명: ${data.projectName}
 품목: ${data.item}
@@ -101,7 +106,7 @@ export function registerAiHandlers(): void {
   ipcMain.handle('ai:draft-document', async (_, data: { type: string; context: string }) => {
     try {
       const ai = getGenAI()
-      const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: SYSTEM_PROMPT })
+      const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite', systemInstruction: SYSTEM_PROMPT })
       const prompt = `다음 조건에 맞는 공문/문서 초안을 작성해주세요:
 문서 유형: ${data.type}
 상황 설명: ${data.context}
@@ -120,7 +125,7 @@ export function registerAiHandlers(): void {
   ipcMain.handle('ai:process-voice', async (_, text: string) => {
     try {
       const ai = getGenAI()
-      const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash', systemInstruction: SYSTEM_PROMPT })
+      const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite', systemInstruction: SYSTEM_PROMPT })
       const prompt = `사용자가 음성으로 다음을 말했습니다: "${text}"
 이 요청에 대해 간결하고 실용적으로 답변해주세요.`
 

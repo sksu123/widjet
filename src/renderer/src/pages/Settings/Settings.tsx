@@ -7,18 +7,38 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [backupDone, setBackupDone] = useState(false)
   const [activeTab, setActiveTab] = useState<'general' | 'api' | 'user' | 'data'>('general')
+  const [autoStart, setAutoStart] = useState(false)
+  const [dashboardWidgets, setDashboardWidgets] = useState({
+    weather: true,
+    dday: true,
+    today: true,
+    summary: true,
+    quick: true
+  })
 
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
-    const [settingsRes, userRes] = await Promise.all([
+    const [settingsRes, userRes, autoStartRes] = await Promise.all([
       window.api.db.getSettings(),
-      window.api.db.getUser()
+      window.api.db.getUser(),
+      window.api.system?.getLoginItem ? window.api.system.getLoginItem() : Promise.resolve({ success: false, openAtLogin: false })
     ])
-    if (settingsRes.success) setSettings(settingsRes.data as Record<string, string>)
+    if (settingsRes.success) {
+      const s = settingsRes.data as Record<string, string>
+      setSettings(s)
+      if (s.dashboard_widgets) {
+        try {
+          setDashboardWidgets(JSON.parse(s.dashboard_widgets))
+        } catch (e) {}
+      }
+    }
     if (userRes.success) {
       const u = userRes.data as typeof user
       setUser({ name: u.name, school_name: u.school_name, department: u.department, email: u.email || '' })
+    }
+    if (autoStartRes && autoStartRes.success) {
+      setAutoStart(autoStartRes.openAtLogin as boolean)
     }
   }
 
@@ -31,6 +51,13 @@ export default function Settings() {
     for (const [key, value] of Object.entries(settings)) {
       await window.api.db.updateSetting(key, value)
     }
+    await window.api.db.updateSetting('dashboard_widgets', JSON.stringify(dashboardWidgets))
+    
+    // 자동 실행 저장
+    if (window.api.system?.setLoginItem) {
+      await window.api.system.setLoginItem(autoStart)
+    }
+    
     // 사용자 저장
     await window.api.db.updateUser(user as Record<string, unknown>)
     setSaved(true)
@@ -85,16 +112,20 @@ export default function Settings() {
         <div className="card space-y-4">
           <div>
             <label className="label">테마</label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { value: 'dark', label: '🌙 다크' },
-                { value: 'light', label: '☀️ 라이트' }
+                { value: 'light', label: '☀️ 라이트' },
+                { value: 'ocean', label: '🌊 오션 네이비' },
+                { value: 'forest', label: '🌲 포레스트 그린' },
+                { value: 'mocha', label: '☕ 모카 브라운' },
+                { value: 'lavender', label: '🌸 소프트 라벤더' }
               ].map(({ value, label }) => (
                 <button key={value} onClick={() => {
                   updateSetting('theme', value)
                   document.documentElement.className = value
                 }}
-                  className="flex-1 py-2 rounded-lg text-sm font-medium transition-all"
+                  className="py-2 px-1 rounded-lg text-xs font-medium transition-all"
                   style={settings.theme === value
                     ? { background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)', color: 'var(--text-primary)' }
                     : { background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-muted)' }
@@ -117,13 +148,37 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="label">알림 사용</label>
+            <label className="label">시작 프로그램 등록 (PC 전용)</label>
             <div className="flex items-center gap-2">
               <input type="checkbox"
-                checked={settings.notifications_enabled === 'true'}
-                onChange={e => updateSetting('notifications_enabled', e.target.checked ? 'true' : 'false')}
+                checked={autoStart}
+                onChange={e => setAutoStart(e.target.checked)}
                 className="w-4 h-4 accent-blue-500" />
-              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>일정 알림 활성화</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>PC 부팅 시 위젯 자동 실행 (백그라운드)</span>
+            </div>
+          </div>
+          
+          <div className="divider" />
+          
+          <div>
+            <label className="label">행정실 허브 화면 구성</label>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>메인 화면에 표시할 위젯을 선택하세요.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { key: 'weather', label: '상단 날씨' },
+                { key: 'dday', label: '다가오는 일정' },
+                { key: 'today', label: '오늘 일정' },
+                { key: 'summary', label: '현황 요약' },
+                { key: 'quick', label: '빠른 실행 버튼' }
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center gap-2">
+                  <input type="checkbox"
+                    checked={dashboardWidgets[key as keyof typeof dashboardWidgets]}
+                    onChange={e => setDashboardWidgets({ ...dashboardWidgets, [key]: e.target.checked })}
+                    className="w-4 h-4 accent-emerald-500" />
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -131,12 +186,18 @@ export default function Settings() {
 
       {activeTab === 'api' && (
         <div className="card space-y-4">
-          <div className="p-3 rounded-lg text-xs" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
-            <p style={{ color: '#60a5fa' }}>💡 API 키 발급 방법:</p>
-            <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Gemini API: <a href="#" style={{ color: '#60a5fa' }}>aistudio.google.com</a>에서 무료 발급<br/>
-              날씨 API: <a href="#" style={{ color: '#60a5fa' }}>openweathermap.org</a>에서 무료 발급
-            </p>
+          <div className="p-3 rounded-lg text-xs leading-relaxed" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
+            <p className="font-semibold" style={{ color: '#60a5fa' }}>💡 API 키 발급 방법 가이드</p>
+            <div className="mt-2 space-y-2" style={{ color: 'var(--text-secondary)' }}>
+              <p>
+                <strong className="text-white">1. Gemini API (AI 기능):</strong><br/>
+                <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>aistudio.google.com</a>에 접속하여 Google 계정으로 로그인 후 [Get API key]를 클릭해 무료로 발급받습니다.
+              </p>
+              <p>
+                <strong className="text-white">2. OpenWeatherMap API (날씨):</strong><br/>
+                <a href="https://openweathermap.org/" target="_blank" rel="noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline' }}>openweathermap.org</a>에 접속 및 가입 후 내 프로필의 [My API keys]에서 무료로 발급받습니다.
+              </p>
+            </div>
           </div>
           <div>
             <label className="label">Gemini API 키 (AI 기능 필수)</label>

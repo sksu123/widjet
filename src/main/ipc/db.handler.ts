@@ -50,11 +50,50 @@ export function registerDbHandlers(): void {
 
   ipcMain.handle('db:add-schedule', async (_, data: Record<string, unknown>) => {
     const db = getDb()
-    const result = db.prepare(`
+    const stmt = db.prepare(`
       INSERT INTO schedules (title, description, start_date, end_date, category, color, is_all_day, reminder_minutes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(data.title, data.description, data.start_date, data.end_date, data.category, data.color, data.is_all_day, data.reminder_minutes)
-    return { success: true, id: result.lastInsertRowid }
+    `)
+
+    let lastId = 0
+    const repeatType = data.repeat_type as string || 'none'
+    const limit = repeatType === 'daily' ? 365 : repeatType === 'weekly' ? 52 : repeatType === 'monthly' ? 12 : 1
+    
+    // 시작 및 종료 날짜 파싱 (ISO 8601 문자열 가정)
+    const startDate = new Date(data.start_date as string)
+    const endDate = data.end_date ? new Date(data.end_date as string) : null
+    
+    db.transaction(() => {
+      for (let i = 0; i < limit; i++) {
+        let currentStart = new Date(startDate)
+        let currentEnd = endDate ? new Date(endDate) : null
+        
+        if (repeatType === 'daily') {
+          currentStart.setDate(currentStart.getDate() + i)
+          if (currentEnd) currentEnd.setDate(currentEnd.getDate() + i)
+        } else if (repeatType === 'weekly') {
+          currentStart.setDate(currentStart.getDate() + i * 7)
+          if (currentEnd) currentEnd.setDate(currentEnd.getDate() + i * 7)
+        } else if (repeatType === 'monthly') {
+          currentStart.setMonth(currentStart.getMonth() + i)
+          if (currentEnd) currentEnd.setMonth(currentEnd.getMonth() + i)
+        }
+        
+        const res = stmt.run(
+          data.title, 
+          data.description, 
+          currentStart.toISOString(), 
+          currentEnd ? currentEnd.toISOString() : null, 
+          data.category, 
+          data.color, 
+          data.is_all_day, 
+          data.reminder_minutes
+        )
+        if (i === 0) lastId = res.lastInsertRowid as number
+      }
+    })()
+    
+    return { success: true, id: lastId }
   })
 
   ipcMain.handle('db:update-schedule', async (_, id: number, data: Record<string, unknown>) => {
@@ -77,6 +116,26 @@ export function registerDbHandlers(): void {
     const db = getDb()
     const rows = db.prepare('SELECT * FROM corporate_cards ORDER BY id ASC').all()
     return { success: true, data: rows }
+  })
+
+  ipcMain.handle('db:add-card', async (_, data: Record<string, unknown>) => {
+    const db = getDb()
+    const result = db.prepare('INSERT INTO corporate_cards (card_name, card_number, is_available) VALUES (?, ?, 1)').run(data.card_name, data.card_number)
+    return { success: true, id: result.lastInsertRowid }
+  })
+
+  ipcMain.handle('db:update-card', async (_, id: number, data: Record<string, unknown>) => {
+    const db = getDb()
+    db.prepare('UPDATE corporate_cards SET card_name=?, card_number=? WHERE id=?').run(data.card_name, data.card_number, id)
+    return { success: true }
+  })
+
+  ipcMain.handle('db:delete-card', async (_, id: number) => {
+    const db = getDb()
+    // 연관된 이력도 함께 삭제하거나, 실제 환경에서는 삭제보다 비활성화를 추천하지만 여기서는 하드삭제
+    db.prepare('DELETE FROM card_history WHERE card_id=?').run(id)
+    db.prepare('DELETE FROM corporate_cards WHERE id=?').run(id)
+    return { success: true }
   })
 
   ipcMain.handle('db:borrow-card', async (_, id: number, data: { borrower_name: string; borrower_dept: string; purpose: string; due_date: string }) => {

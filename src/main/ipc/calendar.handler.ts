@@ -100,10 +100,11 @@ export function registerCalendarHandlers(): void {
         SELECT *, 
           CAST((julianday(date(start_date)) - julianday(?)) AS INTEGER) AS days_left
         FROM schedules
-        WHERE date(start_date) >= ?
+        WHERE date(start_date) >= ? 
+          AND CAST((julianday(date(start_date)) - julianday(?)) AS INTEGER) <= 31
         ORDER BY start_date ASC
         LIMIT 5
-      `).all(today, today)
+      `).all(today, today, today)
       return { success: true, data: rows }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)

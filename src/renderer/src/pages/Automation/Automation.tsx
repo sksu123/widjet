@@ -31,7 +31,16 @@ export default function Automation() {
       icon: '💾',
       action: async () => {
         const res = await window.api.file.backupDb()
-        return { success: res.success, detail: res.success ? `백업 완료: ${res.path}` : res.error || '' }
+        if (!res.success) return { success: false, detail: res.error || '백업 실패' }
+        
+        // 경로에서 폴더 부분 추출 (마지막 슬래시 이전)
+        const pathStr = res.path as string || ''
+        const folderPath = pathStr.substring(0, pathStr.lastIndexOf('\\')) || pathStr.substring(0, pathStr.lastIndexOf('/')) || pathStr
+        
+        return { 
+          success: true, 
+          detail: `저장된 파일: ${pathStr}\n\n[ 백업 폴더 위치 ]\n${folderPath}\n\n백업 내용: 사용자 설정, 일정, 공문, 시스템 데이터 전체 백업 완료` 
+        }
       }
     },
     {
@@ -42,6 +51,42 @@ export default function Automation() {
         const text = await navigator.clipboard.readText()
         const res = await window.api.file.saveText(text, '문서_' + new Date().toLocaleDateString('ko-KR').replace(/\./g, '') + '.txt')
         return { success: res.success, detail: res.success ? '저장 완료' : res.error || '' }
+      }
+    },
+    {
+      label: '비밀번호 생성기',
+      desc: '안전한 임의 비밀번호 12자리 생성 및 복사',
+      icon: '🔐',
+      action: async () => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+        let password = ''
+        for (let i = 0; i < 12; i++) {
+          password += chars.charAt(Math.floor(Math.random() * chars.length))
+        }
+        await navigator.clipboard.writeText(password)
+        return { success: true, detail: `생성된 비밀번호: ${password}\n클립보드에 복사되었습니다.` }
+      }
+    },
+    {
+      label: '개인정보 텍스트 마스킹',
+      desc: '클립보드 내 주민/전화번호 마스킹 후 복사',
+      icon: '🛡️',
+      action: async () => {
+        try {
+          let text = await navigator.clipboard.readText()
+          if (!text) return { success: false, detail: '클립보드에 텍스트가 없습니다.' }
+          
+          let count = 0
+          // 주민번호 
+          text = text.replace(/(\d{6})[- ]?(\d{7})/g, (match, p1, p2) => { count++; return `${p1}-*******` })
+          // 폰번호
+          text = text.replace(/(01[016789])[- ]?(\d{3,4})[- ]?(\d{4})/g, (match, p1, p2, p3) => { count++; return `${p1}-****-${p3}` })
+          
+          await navigator.clipboard.writeText(text)
+          return { success: true, detail: `${count}건의 개인정보가 마스킹 되었습니다.\n클립보드에 다시 복사되었습니다.` }
+        } catch (e) {
+          return { success: false, detail: '텍스트 읽기/쓰기 오류' }
+        }
       }
     }
   ]
@@ -65,13 +110,6 @@ export default function Automation() {
     }
   }
 
-  const COMING_SOON = [
-    { label: 'PDF 병합', icon: '📑', desc: '여러 PDF를 하나로 합치기' },
-    { label: 'PDF 분할', icon: '✂️', desc: 'PDF를 페이지별로 분할' },
-    { label: '한글→PDF 변환', icon: '🔄', desc: 'HWP 파일을 PDF로 변환' },
-    { label: '엑셀 집계', icon: '📊', desc: '엑셀 데이터 자동 집계' },
-    { label: '이미지 압축', icon: '🖼️', desc: '이미지 파일 용량 최적화' },
-  ]
 
   return (
     <div className="fade-in space-y-4">
@@ -122,19 +160,7 @@ export default function Automation() {
         </div>
       </div>
 
-      {/* 개발 예정 */}
-      <div>
-        <p className="section-title">개발 예정 도구</p>
-        <div className="grid grid-cols-5 gap-2">
-          {COMING_SOON.map(tool => (
-            <div key={tool.label} className="card text-center opacity-50 cursor-not-allowed">
-              <div className="text-xl mb-1">{tool.icon}</div>
-              <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{tool.label}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>준비 중</p>
-            </div>
-          ))}
-        </div>
-      </div>
+
 
       {/* 결과 */}
       {result && (

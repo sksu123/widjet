@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Calculator, Save, RefreshCw } from 'lucide-react'
 
-type CalcType = 'travel' | 'instructor' | 'tax' | 'insurance' | 'overtime' | 'severance'
+type CalcType = 'travel' | 'instructor' | 'vat' | 'insurance' | 'overtime' | 'severance'
 
 interface CalcResult { label: string; value: string; highlight?: boolean }
 
 export default function CalculatorPage() {
-  const [activeCalc, setActiveCalc] = useState<CalcType>('travel')
+  const [activeCalc, setActiveCalc] = useState<CalcType>('instructor')
   const [result, setResult] = useState<CalcResult[]>([])
   const [saved, setSaved] = useState(false)
 
@@ -38,39 +38,62 @@ export default function CalculatorPage() {
   }
 
   // ===== 강사수당 계산 =====
-  const [instructor, setInstructor] = useState({ hours: '2', rate: '30000', sessions: '1' })
+  const [instructor, setInstructor] = useState({ type: '일반강사 I', hours: '1', pages: '0' })
   const calcInstructor = () => {
     const hours = parseFloat(instructor.hours) || 0
-    const rate = parseInt(instructor.rate) || 0
-    const sessions = parseInt(instructor.sessions) || 1
-    const gross = rate * hours * sessions
-    const withholdingTax = Math.floor(gross * 0.033)  // 3.3%
+    const pages = parseFloat(instructor.pages) || 0
+
+    // 단가 표 (기본 1시간, 초과 매 시간당)
+    const rates: Record<string, { base: number; excess: number; flat?: number }> = {
+      '특별강사 I': { base: 300000, excess: 200000 },
+      '특별강사 II': { base: 200000, excess: 150000 },
+      '일반강사 I': { base: 160000, excess: 90000 },
+      '일반강사 II': { base: 90000, excess: 60000 },
+      '보조강사': { base: 40000, excess: 40000, flat: 40000 } // 시간당 단가 정액
+    }
+
+    const typeRate = rates[instructor.type] || rates['일반강사 II']
+    let lectureFee = 0
+
+    if (hours > 0) {
+      if (typeRate.flat) {
+        lectureFee = typeRate.flat * hours
+      } else {
+        const fullHours = Math.floor(hours)
+        const isExcess = hours > fullHours // e.g. 1.5
+        lectureFee = typeRate.base + (fullHours - 1) * typeRate.excess
+        if (isExcess) {
+          lectureFee += typeRate.excess // 30분 이상 초과 시 1시간으로 간주하는 규정이 일반적
+        }
+      }
+    }
+
+    const manuscriptFee = pages * 20000 // 원고료 매당 2만원
+    const gross = lectureFee + manuscriptFee
+    const withholdingTax = Math.floor(gross * 0.088) // 기타소득세 8.8% (필요경비 60% 공제 후 22%) *강의료 기준 일반적 적용
+
     const net = gross - withholdingTax
 
     setResult([
-      { label: '총 강의료', value: `${gross.toLocaleString()}원` },
-      { label: '원천징수세 (3.3%)', value: `${withholdingTax.toLocaleString()}원` },
+      { label: '강사료', value: `${lectureFee.toLocaleString()}원` },
+      { label: '원고료', value: `${manuscriptFee.toLocaleString()}원` },
+      { label: '지급 총액', value: `${gross.toLocaleString()}원`, highlight: true },
+      { label: '원천징수 (8.8% 등)', value: `${withholdingTax.toLocaleString()}원` },
       { label: '실 지급액', value: `${net.toLocaleString()}원`, highlight: true },
     ])
   }
 
-  // ===== 원천세 계산 =====
-  const [taxCalc, setTaxCalc] = useState({ salary: '3000000', children: '0' })
-  const calcTax = () => {
-    const salary = parseInt(taxCalc.salary) || 0
-    const children = parseInt(taxCalc.children) || 0
-    const deduction = 150000 + children * 150000
-    const taxable = Math.max(salary - deduction, 0)
-    const incomeTax = taxable <= 1200000 ? 0 : Math.floor(taxable * 0.06)
-    const localTax = Math.floor(incomeTax * 0.1)
-    const total = incomeTax + localTax
+  // ===== 부가세 계산 =====
+  const [vatCalc, setVatCalc] = useState({ total: '11000' })
+  const calcVat = () => {
+    const total = parseInt(vatCalc.total) || 0
+    const supplyValue = Math.round(total / 1.1)
+    const vatAmount = total - supplyValue
 
     setResult([
-      { label: '과세표준', value: `${taxable.toLocaleString()}원` },
-      { label: '근로소득세', value: `${incomeTax.toLocaleString()}원` },
-      { label: '지방소득세', value: `${localTax.toLocaleString()}원` },
-      { label: '합계 공제액', value: `${total.toLocaleString()}원`, highlight: true },
-      { label: '실 지급액', value: `${(salary - total).toLocaleString()}원` },
+      { label: '합계금액', value: `${total.toLocaleString()}원` },
+      { label: '공급가액', value: `${supplyValue.toLocaleString()}원`, highlight: true },
+      { label: '부가세액 (10%)', value: `${vatAmount.toLocaleString()}원`, highlight: true },
     ])
   }
 
@@ -126,9 +149,9 @@ export default function CalculatorPage() {
   }
 
   const CALCS = [
-    { key: 'travel', label: '여비', icon: '✈️', run: calcTravel },
+    { key: 'travel', label: '여비 (새창)', icon: '✈️', run: () => {} },
     { key: 'instructor', label: '강사수당', icon: '👨‍🏫', run: calcInstructor },
-    { key: 'tax', label: '원천세', icon: '📊', run: calcTax },
+    { key: 'vat', label: '부가세', icon: '📊', run: calcVat },
     { key: 'insurance', label: '4대보험', icon: '🏥', run: calcInsurance },
     { key: 'overtime', label: '초과근무', icon: '⏰', run: calcOvertime },
     { key: 'severance', label: '퇴직금', icon: '💼', run: calcSeverance },
@@ -149,7 +172,7 @@ export default function CalculatorPage() {
       input_data: JSON.stringify(
         activeCalc === 'travel' ? travel :
         activeCalc === 'instructor' ? instructor :
-        activeCalc === 'tax' ? taxCalc :
+        activeCalc === 'vat' ? vatCalc :
         activeCalc === 'insurance' ? insurance :
         activeCalc === 'overtime' ? overtime : severance
       ),
@@ -173,7 +196,14 @@ export default function CalculatorPage() {
         {CALCS.map(({ key, label, icon }) => (
           <button
             key={key}
-            onClick={() => { setActiveCalc(key as CalcType); setResult([]) }}
+            onClick={() => {
+              if (key === 'travel') {
+                window.open('https://hyonu1.github.io/ybez/', '_blank')
+              } else {
+                setActiveCalc(key as CalcType)
+                setResult([])
+              }
+            }}
             className="flex flex-col items-center gap-1 py-3 rounded-xl text-xs font-medium transition-all"
             style={activeCalc === key
               ? { background: 'linear-gradient(135deg, #f59e0b22, #d9770611)', border: '1px solid #f59e0b44', color: '#f59e0b' }
@@ -214,21 +244,26 @@ export default function CalculatorPage() {
 
           {activeCalc === 'instructor' && (
             <>
-              <div><label className="label">강의 시간수</label>
-                <input className="input" value={instructor.hours} onChange={e => setInstructor({ ...instructor, hours: e.target.value })} type="number" step="0.5" /></div>
-              <div><label className="label">시간당 강사료 (원)</label>
-                <input className="input" value={instructor.rate} onChange={e => setInstructor({ ...instructor, rate: e.target.value })} type="number" /></div>
-              <div><label className="label">강의 횟수</label>
-                <input className="input" value={instructor.sessions} onChange={e => setInstructor({ ...instructor, sessions: e.target.value })} type="number" /></div>
+              <div><label className="label">강사 구분</label>
+                <select className="input" value={instructor.type} onChange={e => setInstructor({ ...instructor, type: e.target.value })}>
+                  <option value="특별강사 I">특별강사 I (기본 30만/초과 20만)</option>
+                  <option value="특별강사 II">특별강사 II (기본 20만/초과 15만)</option>
+                  <option value="일반강사 I">일반강사 I (기본 16만/초과 9만)</option>
+                  <option value="일반강사 II">일반강사 II (기본 9만/초과 6만)</option>
+                  <option value="보조강사">보조강사 (시간당 4만)</option>
+                </select>
+              </div>
+              <div><label className="label">강의 시간수 (시간)</label>
+                <input className="input" value={instructor.hours} onChange={e => setInstructor({ ...instructor, hours: e.target.value })} type="number" step="1" /></div>
+              <div><label className="label">원고료 매수 (A4 기준)</label>
+                <input className="input" value={instructor.pages} onChange={e => setInstructor({ ...instructor, pages: e.target.value })} type="number" /></div>
             </>
           )}
 
-          {activeCalc === 'tax' && (
+          {activeCalc === 'vat' && (
             <>
-              <div><label className="label">월 급여 (원)</label>
-                <input className="input" value={taxCalc.salary} onChange={e => setTaxCalc({ ...taxCalc, salary: e.target.value })} type="number" /></div>
-              <div><label className="label">부양가족 공제 인원</label>
-                <input className="input" value={taxCalc.children} onChange={e => setTaxCalc({ ...taxCalc, children: e.target.value })} type="number" /></div>
+              <div><label className="label">합계 금액 (원)</label>
+                <input className="input" value={vatCalc.total} onChange={e => setVatCalc({ ...vatCalc, total: e.target.value })} type="number" /></div>
             </>
           )}
 

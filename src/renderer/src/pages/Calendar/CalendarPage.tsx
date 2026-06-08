@@ -22,7 +22,7 @@ export default function CalendarPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', category: 'general', color: '#3b82f6', is_all_day: true, start_date: '' })
+  const [form, setForm] = useState({ title: '', category: 'general', color: '#3b82f6', is_all_day: true, start_date: '', repeat_type: 'none' })
 
   useEffect(() => {
     loadSchedules()
@@ -48,7 +48,7 @@ export default function CalendarPage() {
       is_all_day: form.is_all_day ? 1 : 0,
     })
     setShowForm(false)
-    setForm({ title: '', category: 'general', color: '#3b82f6', is_all_day: true, start_date: '' })
+    setForm({ title: '', category: 'general', color: '#3b82f6', is_all_day: true, start_date: '', repeat_type: 'none' })
     loadSchedules()
   }
 
@@ -191,6 +191,15 @@ export default function CalendarPage() {
               <label className="label">분류</label>
               <select className="input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
                 {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">반복 설정</label>
+              <select className="input" value={form.repeat_type} onChange={e => setForm({ ...form, repeat_type: e.target.value })}>
+                <option value="none">반복 없음</option>
+                <option value="daily">매일 (1년)</option>
+                <option value="weekly">매주 (1년)</option>
+                <option value="monthly">매월 (1년)</option>
               </select>
             </div>
             <div className="flex gap-2">

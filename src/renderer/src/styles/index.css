@@ -60,7 +60,7 @@ html, body, #root {
 }
 
 /* 라이트모드 */
-html:not(.dark) {
+html.light {
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f1f5f9;
@@ -71,6 +71,62 @@ html:not(.dark) {
   --border: rgba(226, 232, 240, 0.8);
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* 오션 네이비 */
+html.ocean {
+  --bg-primary: #0a192f;
+  --bg-secondary: #112240;
+  --bg-tertiary: #020c1b;
+  --bg-card: rgba(17, 34, 64, 0.8);
+  --text-primary: #ccd6f6;
+  --text-secondary: #8892b0;
+  --text-muted: #495670;
+  --border: rgba(35, 53, 84, 0.6);
+  --shadow: 0 4px 24px rgba(2, 12, 27, 0.5);
+  --shadow-sm: 0 2px 8px rgba(2, 12, 27, 0.3);
+}
+
+/* 포레스트 그린 */
+html.forest {
+  --bg-primary: #0d1b13;
+  --bg-secondary: #162b1e;
+  --bg-tertiary: #09130d;
+  --bg-card: rgba(22, 43, 30, 0.8);
+  --text-primary: #d5eedd;
+  --text-secondary: #8da495;
+  --text-muted: #53695b;
+  --border: rgba(37, 65, 48, 0.6);
+  --shadow: 0 4px 24px rgba(9, 19, 13, 0.5);
+  --shadow-sm: 0 2px 8px rgba(9, 19, 13, 0.3);
+}
+
+/* 모카 브라운 */
+html.mocha {
+  --bg-primary: #1f1b18;
+  --bg-secondary: #2d2621;
+  --bg-tertiary: #14110f;
+  --bg-card: rgba(45, 38, 33, 0.8);
+  --text-primary: #eedcd5;
+  --text-secondary: #a8948a;
+  --text-muted: #6b5c54;
+  --border: rgba(69, 57, 50, 0.6);
+  --shadow: 0 4px 24px rgba(20, 17, 15, 0.5);
+  --shadow-sm: 0 2px 8px rgba(20, 17, 15, 0.3);
+}
+
+/* 소프트 라벤더 */
+html.lavender {
+  --bg-primary: #fdfcff;
+  --bg-secondary: #f6f3fc;
+  --bg-tertiary: #efebf7;
+  --bg-card: rgba(246, 243, 252, 0.9);
+  --text-primary: #3d3550;
+  --text-secondary: #6e6484;
+  --text-muted: #a69bb8;
+  --border: rgba(207, 199, 222, 0.8);
+  --shadow: 0 4px 24px rgba(89, 72, 125, 0.08);
+  --shadow-sm: 0 2px 8px rgba(89, 72, 125, 0.06);
 }
 
 /* ===== 공통 컴포넌트 스타일 ===== */

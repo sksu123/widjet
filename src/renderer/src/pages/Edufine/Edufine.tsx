@@ -7,7 +7,7 @@ export default function Edufine() {
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState('')
-  const [activeTab, setActiveTab] = useState<'budget' | 'check' | 'draft'>('budget')
+  const [activeTab, setActiveTab] = useState<'budget'>('budget')
 
   const recommend = async () => {
     if (!projectName || !item || !amount) return
@@ -52,27 +52,21 @@ export default function Edufine() {
         </div>
       </div>
 
-      {/* 탭 */}
-      <div className="flex gap-1.5">
-        {[
-          { key: 'budget', label: '예산과목 추천' },
-          { key: 'check', label: '회계 체크리스트' },
-          { key: 'draft', label: '품의서 예시' }
-        ].map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key as typeof activeTab)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${
-              activeTab === key ? 'text-white' : 'hover:bg-white/5'
-            }`}
-            style={activeTab === key
-              ? { background: 'linear-gradient(135deg, #14b8a6, #0d9488)', color: 'white' }
-              : { color: 'var(--text-muted)' }
-            }
-          >
-            {label}
-          </button>
-        ))}
+      {/* 탭 및 외부 링크 */}
+      <div className="flex gap-2">
+        <button
+          className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all text-white"
+          style={{ background: 'linear-gradient(135deg, #14b8a6, #0d9488)' }}
+        >
+          예산과목 추천
+        </button>
+        <button
+          onClick={() => window.open('https://sksu123-yeabi.vercel.app/', '_blank')}
+          className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-white/5 border"
+          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+        >
+          여비정산신청서 (새창)
+        </button>
       </div>
 
       {activeTab === 'budget' && (
@@ -146,47 +140,6 @@ export default function Edufine() {
         </div>
       )}
 
-      {activeTab === 'check' && (
-        <div className="space-y-3">
-          {CHECK_ITEMS.map(({ category, items }) => (
-            <div key={category} className="card">
-              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--accent-mint)' }}>{category}</p>
-              <div className="space-y-2">
-                {items.map(item => (
-                  <label key={item} className="flex items-center gap-2 cursor-pointer group">
-                    <input type="checkbox" className="w-3.5 h-3.5 rounded accent-teal-500" />
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'draft' && (
-        <div className="card">
-          <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>지출품의서 예시</p>
-          <div className="text-xs leading-loose p-4 rounded-lg" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-            <p className="font-bold text-center mb-3" style={{ color: 'var(--text-primary)' }}>지 출 품 의 서</p>
-            <p>○ 사업명: [사업명]</p>
-            <p>○ 세출예산과목</p>
-            <p className="ml-4">- 정책사업: [정책사업명]</p>
-            <p className="ml-4">- 단위사업: [단위사업명]</p>
-            <p className="ml-4">- 세부사업: [세부사업명]</p>
-            <p className="ml-4">- 목: [목명] / 세목: [세목명]</p>
-            <p>○ 지출목적: [목적]</p>
-            <p>○ 지출내역</p>
-            <p className="ml-4">- 품목: [품목명]</p>
-            <p className="ml-4">- 수량: [수량]</p>
-            <p className="ml-4">- 단가: [단가]원</p>
-            <p className="ml-4">- 금액: [금액]원</p>
-            <p>○ 지출금액: 일금 [금액] 원정 (₩ [숫자])</p>
-            <p>○ 지출방법: [현금/계좌이체/법인카드]</p>
-            <p>○ 수령인(처): [수령인명]</p>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -38,6 +38,9 @@ const api = {
     deleteSchedule: (id: number) => ipcRenderer.invoke('db:delete-schedule', id),
 
     getCards: () => ipcRenderer.invoke('db:get-cards'),
+    addCard: (data: Record<string, unknown>) => ipcRenderer.invoke('db:add-card', data),
+    updateCard: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('db:update-card', id, data),
+    deleteCard: (id: number) => ipcRenderer.invoke('db:delete-card', id),
     borrowCard: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('db:borrow-card', id, data),
     returnCard: (id: number) => ipcRenderer.invoke('db:return-card', id),
     getCardHistory: (cardId?: number) => ipcRenderer.invoke('db:get-card-history', cardId),
@@ -74,6 +77,12 @@ const api = {
     getToday: () => ipcRenderer.invoke('calendar:get-today'),
     getMonth: (year: number, month: number) => ipcRenderer.invoke('calendar:get-month', year, month),
     getDday: () => ipcRenderer.invoke('calendar:get-dday')
+  },
+
+  // 시스템 (자동 실행 등)
+  system: {
+    setLoginItem: (openAtLogin: boolean) => ipcRenderer.invoke('system:set-login-item', openAtLogin),
+    getLoginItem: () => ipcRenderer.invoke('system:get-login-item')
   }
 }
 
