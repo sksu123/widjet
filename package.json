@@ -1,6 +1,6 @@
 {
   "name": "school-admin-widget",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "학교 행정실 AI 데스크톱 위젯",
   "main": "out/main/index.js",
   "scripts": {

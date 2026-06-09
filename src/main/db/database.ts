@@ -62,10 +62,10 @@ function createTables(): void {
       end_date DATETIME,
       category TEXT DEFAULT 'general',
       color TEXT DEFAULT '#3b82f6',
-      is_recurring INTEGER DEFAULT 0,
       recurrence_rule TEXT,
       reminder_minutes INTEGER DEFAULT 30,
       is_all_day INTEGER DEFAULT 0,
+      is_completed INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -156,7 +156,26 @@ function createTables(): void {
       user_name TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- 주요 연락수랙
+    CREATE TABLE IF NOT EXISTS contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      note TEXT,
+      sort_order INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `)
+  
+  // 마이그레이션: 기존 schedules 테이블에 is_completed가 없다면 추가
+  try {
+    db.exec(`ALTER TABLE schedules ADD COLUMN is_completed INTEGER DEFAULT 0;`)
+  } catch (e) {
+    // 이미 존재하는 경우 무시
+  }
 }
 
 function seedInitialData(): void {

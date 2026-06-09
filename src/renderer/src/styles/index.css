@@ -1,4 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -17,6 +25,38 @@ html, body, #root {
   overflow: hidden;
   font-family: 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
   user-select: none;
+}
+
+html.font-pretendard, html.font-pretendard body {
+  font-family: 'Pretendard', 'Malgun Gothic', system-ui, sans-serif !important;
+}
+
+html.font-nanum, html.font-nanum body {
+  font-family: 'Nanum Gothic', 'Malgun Gothic', system-ui, sans-serif !important;
+}
+
+html.font-myeongjo, html.font-myeongjo body {
+  font-family: 'Nanum Myeongjo', 'Batang', Georgia, serif !important;
+}
+
+html.font-blackhan, html.font-blackhan body {
+  font-family: 'Black Han Sans', 'Malgun Gothic', system-ui, sans-serif !important;
+}
+
+html.font-dohyeon, html.font-dohyeon body {
+  font-family: 'Do Hyeon', 'Malgun Gothic', system-ui, sans-serif !important;
+}
+
+html.font-gowun, html.font-gowun body {
+  font-family: 'Gowun Dodum', 'Malgun Gothic', system-ui, sans-serif !important;
+}
+
+html.font-jua, html.font-jua body {
+  font-family: 'Jua', 'Malgun Gothic', system-ui, sans-serif !important;
+}
+
+html.font-gamja, html.font-gamja body {
+  font-family: 'Gamja Flower', 'Malgun Gothic', system-ui, sans-serif !important;
 }
 
 /* ===== 스크롤바 스타일 ===== */
@@ -129,6 +169,170 @@ html.lavender {
   --shadow-sm: 0 2px 8px rgba(89, 72, 125, 0.06);
 }
 
+/* 카카오톡 */
+html.kakao {
+  --bg-primary: #fae100;
+  --bg-secondary: #ffe812;
+  --bg-tertiary: #f0d400;
+  --bg-card: rgba(255, 235, 20, 0.95);
+  --text-primary: #1a1200;
+  --text-secondary: #3b2d00;
+  --text-muted: #7a6300;
+  --border: rgba(0,0,0,0.15);
+  --accent-blue: #3b82f6;
+  --accent-mint: #14b8a6;
+  --shadow: 0 4px 24px rgba(180,150,0,0.25);
+  --shadow-sm: 0 2px 8px rgba(180,150,0,0.15);
+}
+
+/* 네이버 */
+html.naver {
+  --bg-primary: #030c03;
+  --bg-secondary: #0a1a0a;
+  --bg-tertiary: #041004;
+  --bg-card: rgba(10, 26, 10, 0.9);
+  --text-primary: #e8f5e9;
+  --text-secondary: #a5d6a7;
+  --text-muted: #4caf50;
+  --border: rgba(76, 175, 80, 0.25);
+  --accent-blue: #4caf50;
+  --accent-mint: #81c784;
+  --shadow: 0 4px 24px rgba(0,60,0,0.5);
+  --shadow-sm: 0 2px 8px rgba(0,60,0,0.3);
+}
+
+/* 토스(Toss) */
+html.toss {
+  --bg-primary: #0a0e27;
+  --bg-secondary: #13193f;
+  --bg-tertiary: #070b1e;
+  --bg-card: rgba(19, 25, 63, 0.9);
+  --text-primary: #f0f4ff;
+  --text-secondary: #a8b4e0;
+  --text-muted: #5c6aa0;
+  --border: rgba(100, 120, 220, 0.2);
+  --accent-blue: #4361ee;
+  --accent-mint: #7b8ff0;
+  --shadow: 0 4px 24px rgba(10,20,80,0.5);
+  --shadow-sm: 0 2px 8px rgba(10,20,80,0.3);
+}
+
+/* 인스타그램 */
+html.instagram {
+  --bg-primary: #0d0015;
+  --bg-secondary: #1a0028;
+  --bg-tertiary: #0a0010;
+  --bg-card: rgba(26, 0, 40, 0.9);
+  --text-primary: #fafafa;
+  --text-secondary: #c8a8e0;
+  --text-muted: #8458b3;
+  --border: rgba(200, 100, 220, 0.2);
+  --accent-blue: #e1306c;
+  --accent-mint: #833ab4;
+  --accent-purple: #fd1d1d;
+  --shadow: 0 4px 24px rgba(100,0,150,0.4);
+  --shadow-sm: 0 2px 8px rgba(100,0,150,0.2);
+}
+
+/* 넷플릭스 */
+html.netflix {
+  --bg-primary: #141414;
+  --bg-secondary: #1f1f1f;
+  --bg-tertiary: #0a0a0a;
+  --bg-card: rgba(31, 31, 31, 0.95);
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --text-muted: #595959;
+  --border: rgba(255,255,255,0.08);
+  --accent-blue: #e50914;
+  --accent-mint: #e50914;
+  --shadow: 0 4px 24px rgba(229,9,20,0.2);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* 유튜브 */
+html.youtube {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1c1c1c;
+  --bg-tertiary: #070707;
+  --bg-card: rgba(28, 28, 28, 0.95);
+  --text-primary: #f1f1f1;
+  --text-secondary: #aaaaaa;
+  --text-muted: #555555;
+  --border: rgba(255,255,255,0.1);
+  --accent-blue: #ff0000;
+  --accent-mint: #ff4444;
+  --shadow: 0 4px 24px rgba(255,0,0,0.15);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* 배달의민족(배민) */
+html.baemin {
+  --bg-primary: #eaf8f7;
+  --bg-secondary: #d5f2f0;
+  --bg-tertiary: #c0ecea;
+  --bg-card: rgba(255, 255, 255, 0.92);
+  --text-primary: #1b3a39;
+  --text-secondary: #2a7a78;
+  --text-muted: #6cb8b5;
+  --border: rgba(44, 180, 175, 0.3);
+  --accent-blue: #2cb4af;
+  --accent-mint: #18a39e;
+  --shadow: 0 4px 24px rgba(44,180,175,0.15);
+  --shadow-sm: 0 2px 8px rgba(44,180,175,0.1);
+}
+
+/* 당근마켓 */
+html.daangn {
+  --bg-primary: #fff5ef;
+  --bg-secondary: #fff0e6;
+  --bg-tertiary: #ffe8d8;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --text-primary: #1a0a00;
+  --text-secondary: #7a3800;
+  --text-muted: #c06000;
+  --border: rgba(255, 120, 30, 0.25);
+  --accent-blue: #ff6f0f;
+  --accent-mint: #ff8f3f;
+  --shadow: 0 4px 24px rgba(255,111,15,0.15);
+  --shadow-sm: 0 2px 8px rgba(255,111,15,0.1);
+}
+
+/* 파스텔 톤 */
+html.pastel {
+  --bg-primary: #fef9f0;
+  --bg-secondary: #fff4f8;
+  --bg-tertiary: #f0f8ff;
+  --bg-card: rgba(255, 252, 248, 0.95);
+  --text-primary: #2d1b4e;
+  --text-secondary: #7a6090;
+  --text-muted: #b8a8c8;
+  --border: rgba(200, 180, 230, 0.5);
+  --accent-blue: #a78bfa;
+  --accent-mint: #6ee7b7;
+  --accent-purple: #f9a8d4;
+  --accent-orange: #fed7aa;
+  --shadow: 0 4px 24px rgba(167,139,250,0.15);
+  --shadow-sm: 0 2px 8px rgba(167,139,250,0.1);
+}
+
+/* 칠판 테마 */
+html.chalkboard {
+  --bg-primary: #1a3a2a;
+  --bg-secondary: #234d38;
+  --bg-tertiary: #122a1e;
+  --bg-card: rgba(35, 77, 56, 0.85);
+  --text-primary: #f5f0e8;
+  --text-secondary: #d4c9b0;
+  --text-muted: #8a9e8a;
+  --border: rgba(245, 240, 232, 0.15);
+  --accent-blue: #60c8a0;
+  --accent-mint: #a8e6cf;
+  --accent-orange: #ffd180;
+  --shadow: 0 4px 24px rgba(0,0,0,0.5);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+}
+
 /* ===== 공통 컴포넌트 스타일 ===== */
 @layer components {
   .card {
@@ -137,6 +341,24 @@ html.lavender {
     border: 1px solid var(--border);
     box-shadow: var(--shadow-sm);
   }
+
+  html.layout-compact .card {
+    @apply p-2.5 rounded-lg;
+  }
+
+  html.layout-compact .page-title {
+    @apply text-lg;
+  }
+
+  html.layout-compact .section-title {
+    @apply text-[10px] mb-2;
+  }
+
+  html.layout-compact .text-xs {
+    font-size: 0.7rem;
+    line-height: 1rem;
+  }
+
 
   .card:hover {
     box-shadow: var(--shadow);

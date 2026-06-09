@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import {
-  Cloud, Sun, CloudRain, Wind, Droplets, Calendar, Clock,
-  Bot, CreditCard, Package, Zap, BookOpen, ChevronRight,
-  TrendingUp, Bell
+  Cloud, Sun, CloudRain, Wind, Droplets, Calendar as CalendarIcon, Clock,
+  Bot, CreditCard, Package, Zap, BookOpen, ChevronRight, ChevronLeft,
+  TrendingUp, Bell, Utensils, CheckCircle2, Circle
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday } from 'date-fns'
 
 interface WeatherData {
   city: string; temp: number; feels_like: number
   humidity: number; description: string; icon: string; wind_speed: number
 }
-interface Schedule { id: number; title: string; start_date: string; category: string; color: string; days_left: number }
+interface Schedule { id: number; title: string; start_date: string; category: string; color: string; days_left: number; is_completed: number }
 interface User { name: string; school_name: string; department: string }
 
 export default function Dashboard() {
@@ -23,6 +24,10 @@ export default function Dashboard() {
   const [user, setUser] = useState<User>({ name: '관리자', school_name: '○○초등학교', department: '행정실' })
   const [now, setNow] = useState(new Date())
   const [cards, setCards] = useState<{ total: number; available: number; borrowed: number }>({ total: 0, available: 0, borrowed: 0 })
+  const [mealMenu, setMealMenu] = useState<string[]>([])
+  const [mealError, setMealError] = useState<string>('')
+  const [mealDayOffset, setMealDayOffset] = useState(0)
+  const [mealLoading, setMealLoading] = useState(false)
   const [widgetsConfig, setWidgetsConfig] = useState({
     weather: true,
     dday: true,
@@ -42,13 +47,14 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      const [weatherRes, todayRes, ddayRes, userRes, cardsRes, settingsRes] = await Promise.all([
+      const [weatherRes, todayRes, ddayRes, userRes, cardsRes, settingsRes, mealRes] = await Promise.all([
         window.api.calendar.getWeather('Seoul'),
         window.api.calendar.getToday(),
         window.api.calendar.getDday(),
         window.api.db.getUser(),
         window.api.db.getCards(),
-        window.api.db.getSettings()
+        window.api.db.getSettings(),
+        window.api.calendar.getMeal ? window.api.calendar.getMeal() : Promise.resolve({ success: false, error: 'NEIS_NOT_CONFIGURED' })
       ])
 
       if (weatherRes.success) setWeather(weatherRes.data as WeatherData)
@@ -69,10 +75,55 @@ export default function Dashboard() {
           try { setWidgetsConfig(JSON.parse(s.dashboard_widgets)) } catch(e) {}
         }
       }
+      
+      if (mealRes) {
+        if (mealRes.success) {
+          setMealMenu(mealRes.data as string[])
+        } else {
+          setMealError(mealRes.error as string)
+        }
+      }
     } catch (e) {
       console.error(e)
     }
   }
+
+  // 날짜 오프셋에 따라 급식 정보 불러오기
+  async function loadMeal(offset: number) {
+    setMealLoading(true)
+    setMealMenu([])
+    setMealError('')
+    try {
+      const d = new Date()
+      d.setDate(d.getDate() + offset)
+      const yyyymmdd = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0')
+      const res = await (window.api.calendar.getMeal as (d?: string) => Promise<{success: boolean; data?: string[]; error?: string}>)(yyyymmdd)
+      if (res.success) {
+        setMealMenu(res.data as string[])
+      } else {
+        setMealError(res.error as string)
+      }
+    } catch (e) {
+      setMealError('급식 정보를 불러오지 못했습니다.')
+    } finally {
+      setMealLoading(false)
+    }
+  }
+
+  const toggleSchedule = async (id: number, currentCompleted: number) => {
+    const nextVal = currentCompleted === 1 ? 0 : 1
+    setTodaySchedules(prev => prev.map(s => s.id === id ? { ...s, is_completed: nextVal } : s))
+    if (window.api.calendar.toggleScheduleStatus) {
+      await window.api.calendar.toggleScheduleStatus(id, nextVal)
+    }
+  }
+
+  // 달력 계산 로직
+  const monthStart = startOfMonth(now)
+  const monthEnd = endOfMonth(monthStart)
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 })
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
 
   const quickLinks = [
     { label: 'AI 행정비서', icon: Bot, path: '/ai', color: '#8b5cf6', desc: '업무 절차 및 공문 작성 지원' },
@@ -138,62 +189,138 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* D-Day & 오늘 일정 */}
-      {(widgetsConfig.dday || widgetsConfig.today) && (
-        <div className="grid grid-cols-2 gap-4">
-          {/* D-Day */}
-          {widgetsConfig.dday && (
-            <div className="card">
-              <p className="section-title flex items-center gap-1.5">
-                <Bell size={11} /> 다가오는 일정
-              </p>
-              <div className="space-y-2">
-                {ddays.length === 0 ? (
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>등록된 일정이 없습니다</p>
-                ) : ddays.slice(0, 4).map((s) => (
-                  <div key={s.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: s.color || '#3b82f6' }} />
-                      <span className="text-xs truncate" style={{ color: 'var(--text-secondary)', maxWidth: '120px' }}>{s.title}</span>
+      {/* D-Day & 오늘 일정 & 급식 */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* 미니 달력 (D-Day 포함) */}
+        {widgetsConfig.dday && (
+          <div className="card col-span-1">
+            <p className="section-title flex items-center gap-1.5">
+              <CalendarIcon size={11} /> 이번 달 일정
+            </p>
+            <div className="mt-2">
+              <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                {['일','월','화','수','목','금','토'].map(d => (
+                  <div key={d} className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((day, idx) => {
+                  const daySchedules = ddays.filter(s => isSameDay(new Date(s.start_date), day))
+                  const isCurrentMonth = day.getMonth() === now.getMonth()
+                  const isTodayFlag = isToday(day)
+                  return (
+                    <div key={idx} className="aspect-square flex flex-col items-center justify-start py-0.5 rounded"
+                      style={{ 
+                        opacity: isCurrentMonth ? 1 : 0.3,
+                        background: isTodayFlag ? 'rgba(59,130,246,0.1)' : 'transparent',
+                        border: isTodayFlag ? '1px solid rgba(59,130,246,0.3)' : '1px solid transparent'
+                      }}>
+                      <span className="text-[10px] font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {format(day, 'd')}
+                      </span>
+                      <div className="flex gap-0.5 mt-0.5 flex-wrap justify-center px-0.5">
+                        {daySchedules.slice(0, 3).map((s, i) => (
+                          <div key={i} className="w-1 h-1 rounded-full" style={{ background: s.color || '#3b82f6' }} />
+                        ))}
+                      </div>
                     </div>
-                    <span className="text-xs font-bold tabular-nums"
-                      style={{ color: s.days_left === 0 ? '#10b981' : s.days_left <= 3 ? '#ef4444' : 'var(--accent-blue)' }}>
-                      {s.days_left === 0 ? 'D-Day' : `D-${s.days_left}`}
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* 오늘 일정 */}
+        {widgetsConfig.today && (
+          <div className="card col-span-1">
+            <p className="section-title flex items-center gap-1.5">
+              <CalendarIcon size={11} /> 오늘 일정
+            </p>
+            <div className="space-y-2.5 mt-2">
+              {todaySchedules.length === 0 ? (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>오늘 일정이 없습니다</p>
+              ) : todaySchedules.map((s) => (
+                <div key={s.id} className="flex items-center gap-2 group">
+                  <button onClick={() => toggleSchedule(s.id, s.is_completed || 0)}
+                    className="flex-shrink-0 focus:outline-none transition-transform hover:scale-110 active:scale-90">
+                    {s.is_completed === 1 
+                      ? <CheckCircle2 size={16} className="text-emerald-500" /> 
+                      : <Circle size={16} className="text-slate-400 group-hover:text-blue-400 transition-colors" />}
+                  </button>
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.color || '#3b82f6' }} />
+                    <span className={`text-xs truncate transition-all duration-300 ${s.is_completed === 1 ? 'line-through opacity-50' : ''}`}
+                      style={{ color: 'var(--text-secondary)' }}>
+                      {s.title}
                     </span>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          )}
-          
-          {/* 오늘 일정 */}
-          {widgetsConfig.today && (
-            <div className="card">
-              <p className="section-title flex items-center gap-1.5">
-                <Calendar size={11} /> 오늘 일정
-              </p>
-              <div className="space-y-2">
-                {todaySchedules.length === 0 ? (
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>오늘 일정이 없습니다</p>
-                ) : todaySchedules.slice(0, 4).map((s) => (
-                  <div key={s.id} className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.color || '#3b82f6' }} />
-                    <span className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{s.title}</span>
+          </div>
+        )}
+
+        {/* 오늘의 급식 */}
+        <div className="card col-span-1 flex flex-col">
+          {/* 헤더: 제목 + 날짜 이동 화살표 */}
+          <div className="flex items-center justify-between">
+            <p className="section-title flex items-center gap-1.5">
+              <Utensils size={11} /> 오늘의 급식
+            </p>
+            {mealError !== 'NEIS_NOT_CONFIGURED' && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { const next = mealDayOffset - 1; setMealDayOffset(next); loadMeal(next) }}
+                  className="p-1 rounded hover:bg-white/10 transition-colors"
+                  title="전날">
+                  <ChevronLeft size={14} style={{ color: 'var(--text-muted)' }} />
+                </button>
+                <span className="text-[10px] min-w-[56px] text-center" style={{ color: 'var(--text-muted)' }}>
+                  {mealDayOffset === 0 ? '오늘'
+                    : mealDayOffset === -1 ? '어제'
+                    : mealDayOffset === 1 ? '내일'
+                    : (() => { const d = new Date(); d.setDate(d.getDate() + mealDayOffset); return `${d.getMonth() + 1}/${d.getDate()}` })()}
+                </span>
+                <button
+                  onClick={() => { const next = mealDayOffset + 1; setMealDayOffset(next); loadMeal(next) }}
+                  className="p-1 rounded hover:bg-white/10 transition-colors"
+                  title="다음날">
+                  <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mt-2 flex-1 flex flex-col justify-center">
+            {mealError === 'NEIS_NOT_CONFIGURED' ? (
+              <div className="text-center p-3 rounded-lg border border-dashed" style={{ borderColor: 'var(--border)' }}>
+                <p className="text-xs mb-2" style={{ color: 'var(--text-secondary)' }}>나이스(NEIS) 연동이 필요합니다.</p>
+                <button onClick={() => navigate('/settings')} className="text-[10px] bg-blue-500/10 text-blue-500 px-2 py-1 rounded">설정으로 이동</button>
+              </div>
+            ) : mealLoading ? (
+              <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>불러오는 중...</p>
+            ) : mealError ? (
+              <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>{mealError}</p>
+            ) : (
+              <div className="space-y-1.5">
+                {mealMenu.map((menu, i) => (
+                  <div key={i} className="text-xs px-2 py-1.5 rounded bg-slate-500/5" style={{ color: 'var(--text-primary)' }}>
+                    • {menu}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* 현황 요약 */}
       {widgetsConfig.summary && (
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: '법인카드 이용 가능', value: `${cards.available}/${cards.total}`, icon: CreditCard, color: '#ec4899' },
-            { label: '오늘 일정', value: `${todaySchedules.length}건`, icon: Calendar, color: '#3b82f6' },
-            { label: '이번 달 D-Day', value: `${ddays.length}건`, icon: Clock, color: '#f59e0b' },
+            { label: '오늘 일정', value: `${todaySchedules.length}건`, icon: CalendarIcon, color: '#3b82f6' },
+            { label: '이번 달 일정', value: `${ddays.length}건`, icon: Clock, color: '#f59e0b' },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="card flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"

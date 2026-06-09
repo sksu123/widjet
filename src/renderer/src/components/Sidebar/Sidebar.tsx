@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Bot, BookOpen, Calculator, Calendar, FileText,
-  CreditCard, Package, Zap, Mic, Settings, ChevronRight
+  CreditCard, Package, Zap, Mic, Settings, ChevronRight, BookUser
 } from 'lucide-react'
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/calendar', icon: Calendar, label: '일정 관리', color: '#3b82f6' },
   { to: '/documents', icon: FileText, label: '문서 관리', color: '#10b981' },
   { to: '/card', icon: CreditCard, label: '법인카드', color: '#ec4899' },
+  { to: '/contacts', icon: BookUser, label: '주요 연락처', color: '#14b8a6' },
   { isExternal: true, href: 'https://sksu123-yeabi.vercel.app/', icon: Package, label: '여비정산신청서', color: '#f97316' },
   { to: '/automation', icon: Zap, label: '자동화 센터', color: '#06b6d4' },
   { to: '/voice', icon: Mic, label: 'AI 음성비서', color: '#a78bfa' },

@@ -56,7 +56,12 @@ const api = {
     saveCalculation: (data: Record<string, unknown>) => ipcRenderer.invoke('db:save-calculation', data),
     getCalculations: (type?: string) => ipcRenderer.invoke('db:get-calculations', type),
 
-    addLog: (action: string, module: string, detail: string) => ipcRenderer.invoke('db:add-log', action, module, detail)
+    addLog: (action: string, module: string, detail: string) => ipcRenderer.invoke('db:add-log', action, module, detail),
+
+    getContacts: () => ipcRenderer.invoke('db:get-contacts'),
+    addContact: (data: Record<string, unknown>) => ipcRenderer.invoke('db:add-contact', data),
+    updateContact: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('db:update-contact', id, data),
+    deleteContact: (id: number) => ipcRenderer.invoke('db:delete-contact', id)
   },
 
   // 파일
@@ -76,7 +81,9 @@ const api = {
     getWeather: (city?: string) => ipcRenderer.invoke('calendar:get-weather', city),
     getToday: () => ipcRenderer.invoke('calendar:get-today'),
     getMonth: (year: number, month: number) => ipcRenderer.invoke('calendar:get-month', year, month),
-    getDday: () => ipcRenderer.invoke('calendar:get-dday')
+    getDday: () => ipcRenderer.invoke('calendar:get-dday'),
+    toggleScheduleStatus: (id: number, is_completed: number) => ipcRenderer.invoke('calendar:toggle-schedule-status', id, is_completed),
+    getMeal: (targetDate?: string) => ipcRenderer.invoke('calendar:get-meal', targetDate)
   },
 
   // 시스템 (자동 실행 등)

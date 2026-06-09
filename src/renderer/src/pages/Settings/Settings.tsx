@@ -109,31 +109,152 @@ export default function Settings() {
       </div>
 
       {activeTab === 'general' && (
-        <div className="card space-y-4">
+        <div className="card space-y-5">
+
+          {/* ===== 테마 ===== */}
           <div>
-            <label className="label">테마</label>
-            <div className="grid grid-cols-3 gap-2">
+            <label className="label">테마 디자인</label>
+
+            {/* 기본 테마 */}
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 mt-1" style={{ color: 'var(--text-muted)' }}>기본 테마</p>
+            <div className="flex flex-wrap gap-2 mb-3">
               {[
-                { value: 'dark', label: '🌙 다크' },
-                { value: 'light', label: '☀️ 라이트' },
-                { value: 'ocean', label: '🌊 오션 네이비' },
-                { value: 'forest', label: '🌲 포레스트 그린' },
-                { value: 'mocha', label: '☕ 모카 브라운' },
-                { value: 'lavender', label: '🌸 소프트 라벤더' }
-              ].map(({ value, label }) => (
+                { value: 'dark', label: '🌙 다크', bg: '#0f172a', accent: '#3b82f6' },
+                { value: 'light', label: '☀️ 라이트', bg: '#f8fafc', accent: '#3b82f6' },
+                { value: 'ocean', label: '🌊 오션 네이비', bg: '#0a192f', accent: '#64ffda' },
+                { value: 'forest', label: '🌲 포레스트 그린', bg: '#0d1b13', accent: '#86efac' },
+                { value: 'mocha', label: '☕ 모카 브라운', bg: '#1f1b18', accent: '#d6b08a' },
+                { value: 'lavender', label: '🌸 소프트 라벤더', bg: '#fdfcff', accent: '#a78bfa' },
+              ].map(({ value, label, bg, accent }) => (
                 <button key={value} onClick={() => {
                   updateSetting('theme', value)
-                  document.documentElement.className = value
+                  const font = settings.font || 'noto'
+                  const layout = settings.layout || 'standard'
+                  document.documentElement.className = `${value} font-${font} layout-${layout}`
                 }}
-                  className="py-2 px-1 rounded-lg text-xs font-medium transition-all"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
                   style={settings.theme === value
-                    ? { background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)', color: 'var(--text-primary)' }
-                    : { background: 'var(--bg-tertiary)', border: '1px solid var(--border)', color: 'var(--text-muted)' }
+                    ? { background: accent + '30', border: `1.5px solid ${accent}`, color: 'var(--text-primary)' }
+                    : { background: bg + '40', border: '1.5px solid var(--border)', color: 'var(--text-muted)' }
+                  }>
+                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: bg, border: `2px solid ${accent}` }} />
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* 유명 앱 스타일 */}
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>Famous App Style</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {[
+                { value: 'kakao', label: '💬 카카오톡', bg: '#fae100', accent: '#3c1e1e', textColor: '#1a1200' },
+                { value: 'naver', label: '🔍 네이버', bg: '#03c75a', accent: '#03c75a', textColor: '#ffffff' },
+                { value: 'toss', label: '💳 토스(Toss)', bg: '#4361ee', accent: '#4361ee', textColor: '#ffffff' },
+                { value: 'instagram', label: '📷 인스타그램', bg: '#833ab4', accent: '#e1306c', textColor: '#ffffff' },
+                { value: 'netflix', label: '▶ 넷플릭스', bg: '#141414', accent: '#e50914', textColor: '#ffffff' },
+                { value: 'youtube', label: '▶ 유튜브', bg: '#0f0f0f', accent: '#ff0000', textColor: '#f1f1f1' },
+                { value: 'baemin', label: '🚲 배민', bg: '#2cb4af', accent: '#2cb4af', textColor: '#ffffff' },
+                { value: 'daangn', label: '🥕 당근마켓', bg: '#ff6f0f', accent: '#ff6f0f', textColor: '#ffffff' },
+              ].map(({ value, label, bg, accent, textColor }) => (
+                <button key={value} onClick={() => {
+                  updateSetting('theme', value)
+                  const font = settings.font || 'noto'
+                  const layout = settings.layout || 'standard'
+                  document.documentElement.className = `${value} font-${font} layout-${layout}`
+                }}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                  style={settings.theme === value
+                    ? { background: bg, border: `1.5px solid ${accent}`, color: textColor, boxShadow: `0 0 0 2px ${accent}` }
+                    : { background: bg + '22', border: `1.5px solid ${bg}55`, color: 'var(--text-secondary)' }
                   }>
                   {label}
                 </button>
               ))}
             </div>
+
+            {/* 비주얼 테마 & 무드 */}
+            <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--text-muted)' }}>Visual Theme & Mood</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'pastel', label: '🎨 파스텔 톤', bg: 'linear-gradient(135deg,#ffd6e7,#c3f0ca,#c8d6ff)', textColor: '#4a3060' },
+                { value: 'chalkboard', label: '🖊 칠판 테마', bg: '#1a3a2a', textColor: '#f5f0e8' },
+              ].map(({ value, label, bg, textColor }) => (
+                <button key={value} onClick={() => {
+                  updateSetting('theme', value)
+                  const font = settings.font || 'noto'
+                  const layout = settings.layout || 'standard'
+                  document.documentElement.className = `${value} font-${font} layout-${layout}`
+                }}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                  style={settings.theme === value
+                    ? { background: bg, border: '1.5px solid rgba(255,255,255,0.5)', color: textColor, boxShadow: '0 0 0 2px rgba(255,255,255,0.3)' }
+                    : { background: bg, border: '1.5px solid var(--border)', color: textColor, opacity: 0.7 }
+                  }>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ===== 글꼴 ===== */}
+          <div>
+            <label className="label">글꼴 (폰트)</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: 'noto', label: 'Noto Sans KR', desc: '기본 · 안정적인 가독성', sample: '가나다ABCabc' },
+                { value: 'pretendard', label: 'Pretendard', desc: '깔끔함 · 현대적 고딕', sample: '가나다ABCabc' },
+                { value: 'nanum', label: '나눔고딕', desc: '따뜻함 · 친근한 느낌', sample: '가나다ABCabc' },
+                { value: 'myeongjo', label: '나눔명조', desc: '격식체 · 공문서 스타일', sample: '가나다ABCabc' },
+                { value: 'blackhan', label: 'Black Han Sans', desc: '굵고 강렬한 임팩트', sample: '가나다ABC' },
+                { value: 'dohyeon', label: '도현체', desc: '둥글고 부드러운 고딕', sample: '가나다ABCabc' },
+                { value: 'gowun', label: '고운도담', desc: '아기자기한 손글씨 느낌', sample: '가나다ABCabc' },
+                { value: 'jua', label: '주아체', desc: '귀엽고 개성 있는 스타일', sample: '가나다ABCabc' },
+                { value: 'gamja', label: '감자꽃체', desc: '손글씨 · 감성적인 느낌', sample: '가나다ABCabc' },
+              ].map(({ value, label, desc, sample }) => {
+                const fontFamilyMap: Record<string, string> = {
+                  noto: "'Noto Sans KR', sans-serif",
+                  pretendard: "'Pretendard', sans-serif",
+                  nanum: "'Nanum Gothic', sans-serif",
+                  myeongjo: "'Nanum Myeongjo', serif",
+                  blackhan: "'Black Han Sans', sans-serif",
+                  dohyeon: "'Do Hyeon', sans-serif",
+                  gowun: "'Gowun Dodum', sans-serif",
+                  jua: "'Jua', sans-serif",
+                  gamja: "'Gamja Flower', sans-serif",
+                }
+                const isSelected = (settings.font || 'noto') === value
+                return (
+                  <button key={value} onClick={() => {
+                    updateSetting('font', value)
+                    const allFonts = ['font-noto','font-pretendard','font-nanum','font-myeongjo','font-blackhan','font-dohyeon','font-gowun','font-jua','font-gamja']
+                    document.documentElement.classList.remove(...allFonts)
+                    document.documentElement.classList.add(`font-${value}`)
+                  }}
+                    className="text-left px-3 py-2.5 rounded-lg transition-all"
+                    style={isSelected
+                      ? { background: 'rgba(59,130,246,0.15)', border: '1.5px solid rgba(59,130,246,0.5)', color: 'var(--text-primary)' }
+                      : { background: 'var(--bg-tertiary)', border: '1.5px solid var(--border)', color: 'var(--text-muted)' }
+                    }>
+                    <p className="text-sm font-semibold" style={{ fontFamily: fontFamilyMap[value], color: 'var(--text-primary)' }}>{sample}</p>
+                    <p className="text-[10px] font-medium mt-0.5">{label}</p>
+                    <p className="text-[10px] mt-0.5 opacity-60">{desc}</p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ===== 레이아웃 ===== */}
+          <div>
+            <label className="label">화면 레이아웃</label>
+            <select className="input" value={settings.layout || 'standard'} onChange={e => {
+              updateSetting('layout', e.target.value)
+              document.documentElement.classList.remove('layout-standard', 'layout-compact')
+              document.documentElement.classList.add(`layout-${e.target.value}`)
+            }}>
+              <option value="standard">기본 (넓게 보기)</option>
+              <option value="compact">컴팩트 (좁게 많이 보기)</option>
+            </select>
           </div>
 
           <div>
@@ -212,6 +333,47 @@ export default function Settings() {
               value={settings.weather_api_key || ''}
               onChange={e => updateSetting('weather_api_key', e.target.value)}
               placeholder="날씨 API 키..." />
+          </div>
+
+          <div className="divider" />
+          
+          <div className="p-3 rounded-lg text-xs leading-relaxed" style={{ background: 'rgba(20,184,166,0.1)', border: '1px solid rgba(20,184,166,0.2)' }}>
+            <p className="font-semibold" style={{ color: '#2dd4bf' }}>💡 나이스(NEIS) 급식 API 발급 및 설정 가이드</p>
+            <div className="mt-2 space-y-2" style={{ color: 'var(--text-secondary)' }}>
+              <p>
+                <strong className="text-white">1. API 키 발급:</strong><br/>
+                <a href="https://open.neis.go.kr/" target="_blank" rel="noreferrer" style={{ color: '#2dd4bf', textDecoration: 'underline' }}>나이스 교육정보 개방포털</a> 회원가입 후, [인증키 신청] 메뉴에서 무료로 발급받습니다.
+              </p>
+              <p>
+                <strong className="text-white">2. 교육청코드 & 학교코드 확인:</strong><br/>
+                개방포털 상단의 <strong>[데이터셋] - [학교기본정보]</strong> 메뉴로 이동하여 우측의 <strong>[Open API] 탭 ❯ [API 시뮬레이터]</strong>에서 SCHUL_NM 에 학교명을 입력하고 [호출]을 누르세요.<br/>
+                결과창에서 <code>ATPT_OFCDC_SC_CODE</code>(교육청코드)와 <code>SD_SCHUL_CODE</code>(학교코드)를 복사해서 아래에 붙여넣습니다.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="label">나이스(NEIS) API 키</label>
+            <input className="input font-mono text-xs" type="password"
+              value={settings.neis_api_key || ''}
+              onChange={e => updateSetting('neis_api_key', e.target.value)}
+              placeholder="NEIS 인증키..." />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">시도교육청코드</label>
+              <input className="input font-mono text-xs" type="text"
+                value={settings.neis_atpt_code || ''}
+                onChange={e => updateSetting('neis_atpt_code', e.target.value)}
+                placeholder="예: J10 (경기도)" />
+            </div>
+            <div>
+              <label className="label">학교 표준코드</label>
+              <input className="input font-mono text-xs" type="text"
+                value={settings.neis_schul_code || ''}
+                onChange={e => updateSetting('neis_schul_code', e.target.value)}
+                placeholder="예: 7530000" />
+            </div>
           </div>
         </div>
       )}

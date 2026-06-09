@@ -53,7 +53,7 @@ export default function Edufine() {
       </div>
 
       {/* 탭 및 외부 링크 */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button
           className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all text-white"
           style={{ background: 'linear-gradient(135deg, #14b8a6, #0d9488)' }}
@@ -61,11 +61,15 @@ export default function Edufine() {
           예산과목 추천
         </button>
         <button
-          onClick={() => window.open('https://sksu123-yeabi.vercel.app/', '_blank')}
-          className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-white/5 border"
-          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+          onClick={() => window.open('https://spen-blue.vercel.app/', '_blank')}
+          className="px-4 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 hover:opacity-80"
+          style={{
+            background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+            color: '#ffffff'
+          }}
         >
-          여비정산신청서 (새창)
+          <Search size={12} />
+          지능형학교예산 집행률 분석 앱 ↗
         </button>
       </div>
 

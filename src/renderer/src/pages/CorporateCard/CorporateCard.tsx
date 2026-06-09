@@ -241,6 +241,58 @@ export default function CorporateCardPage() {
           </div>
         </div>
       )}
+
+      {/* 이용기록 모달 */}
+      {showHistory && (
+        <div className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="card w-[480px] max-h-[70vh] flex flex-col" style={{ background: 'var(--bg-secondary)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <History size={16} /> 법인카드 이용기록
+              </p>
+              <button onClick={() => setShowHistory(false)}
+                className="text-xs px-2 py-1 rounded hover:bg-white/10 transition-colors"
+                style={{ color: 'var(--text-muted)' }}>✕ 닫기</button>
+            </div>
+
+            {history.length === 0 ? (
+              <p className="text-xs text-center py-8" style={{ color: 'var(--text-muted)' }}>이용기록이 없습니다.</p>
+            ) : (
+              <div className="overflow-y-auto space-y-2 pr-1">
+                {(history as Array<{
+                  id: number; card_name: string; borrower_name: string; borrower_dept: string;
+                  purpose: string; borrowed_at: string; returned_at?: string
+                }>).map((h) => (
+                  <div key={h.id} className="rounded-lg p-3 text-xs space-y-1"
+                    style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)' }}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                        📋 {h.card_name}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] ${h.returned_at
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-amber-500/20 text-amber-400'}`}>
+                        {h.returned_at ? '반납완료' : '대여중'}
+                      </span>
+                    </div>
+                    <div className="flex gap-4" style={{ color: 'var(--text-secondary)' }}>
+                      <span>👤 {h.borrower_name} ({h.borrower_dept})</span>
+                      <span>📌 {h.purpose}</span>
+                    </div>
+                    <div className="flex gap-4" style={{ color: 'var(--text-muted)' }}>
+                      <span>대여: {new Date(h.borrowed_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      {h.returned_at && (
+                        <span>반납: {new Date(h.returned_at).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Zap, FolderOpen, RefreshCw, FileText, Check, AlertCircle } from 'lucide-react'
+import { Zap, Check, AlertCircle, Copy } from 'lucide-react'
 
 interface Task {
   label: string; desc: string; icon: string
@@ -10,8 +10,74 @@ export default function Automation() {
   const [running, setRunning] = useState<string | null>(null)
   const [result, setResult] = useState<{ label: string; success: boolean; detail: string } | null>(null)
 
+  // 파일 이름변경 옵션
   const [renamePrefix, setRenamePrefix] = useState('파일_')
   const [renameStart, setRenameStart] = useState('1')
+
+  // 한글 금액 변환
+  const [amountInput, setAmountInput] = useState('')
+  const [amountResult, setAmountResult] = useState('')
+
+  // 날짜·기간 계산
+  const [dateStart, setDateStart] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
+  const [dateResult, setDateResult] = useState('')
+
+  // ===== 한글 금액 변환 함수 =====
+  function toKoreanAmount(num: number): string {
+    if (num === 0) return '영원'
+    const units = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구']
+    const tens = ['', '십', '백', '천']
+    const bigs = ['', '만', '억', '조']
+    let result = ''
+    let bigIdx = 0
+    while (num > 0) {
+      const chunk = num % 10000
+      if (chunk > 0) {
+        let chunkStr = ''
+        let n = chunk
+        for (let i = 0; i < 4 && n > 0; i++) {
+          const d = n % 10
+          if (d > 0) chunkStr = units[d] + tens[i] + chunkStr
+          n = Math.floor(n / 10)
+        }
+        result = chunkStr + bigs[bigIdx] + result
+      }
+      bigIdx++
+      num = Math.floor(num / 10000)
+    }
+    return result
+  }
+
+  function convertAmount() {
+    const raw = amountInput.replace(/[,원\s]/g, '')
+    const n = parseInt(raw)
+    if (isNaN(n) || n < 0) { setAmountResult('올바른 숫자를 입력해주세요.'); return }
+    const korean = toKoreanAmount(n)
+    const formatted = `금 ${korean}원정 (₩${n.toLocaleString()})`
+    setAmountResult(formatted)
+  }
+
+  // ===== 날짜·기간 계산 함수 =====
+  function calcDateRange() {
+    if (!dateStart || !dateEnd) { setDateResult('시작일과 종료일을 모두 입력해주세요.'); return }
+    const s = new Date(dateStart)
+    const e = new Date(dateEnd)
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) { setDateResult('올바른 날짜를 입력해주세요.'); return }
+    if (s > e) { setDateResult('종료일이 시작일보다 빠릅니다.'); return }
+
+    const diff = Math.floor((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24))
+    const totalDays = diff + 1 // 양 끝 포함
+
+    const fmt = (d: Date) => `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일`
+    const fmtDot = (d: Date) => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}.`
+
+    setDateResult(
+      `【공문서 기간 표기】\n${fmt(s)} ~ ${fmt(e)} (${totalDays}일간)\n\n` +
+      `【점 표기】\n${fmtDot(s)} ~ ${fmtDot(e)}\n\n` +
+      `【기간 요약】\n- 총 ${totalDays}일 (${diff}박)\n- 주말 포함 전체 일수 기준`
+    )
+  }
 
   const TASKS: Task[] = [
     {
@@ -23,24 +89,6 @@ export default function Automation() {
         if (!folder.success || !folder.paths?.[0]) return { success: false, error: '폴더를 선택하지 않았습니다' }
         const res = await window.api.file.batchRename(folder.paths[0], renamePrefix, parseInt(renameStart) || 1)
         return res
-      }
-    },
-    {
-      label: '데이터베이스 백업',
-      desc: '앱 데이터를 안전하게 백업',
-      icon: '💾',
-      action: async () => {
-        const res = await window.api.file.backupDb()
-        if (!res.success) return { success: false, detail: res.error || '백업 실패' }
-        
-        // 경로에서 폴더 부분 추출 (마지막 슬래시 이전)
-        const pathStr = res.path as string || ''
-        const folderPath = pathStr.substring(0, pathStr.lastIndexOf('\\')) || pathStr.substring(0, pathStr.lastIndexOf('/')) || pathStr
-        
-        return { 
-          success: true, 
-          detail: `저장된 파일: ${pathStr}\n\n[ 백업 폴더 위치 ]\n${folderPath}\n\n백업 내용: 사용자 설정, 일정, 공문, 시스템 데이터 전체 백업 완료` 
-        }
       }
     },
     {
@@ -60,9 +108,7 @@ export default function Automation() {
       action: async () => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
         let password = ''
-        for (let i = 0; i < 12; i++) {
-          password += chars.charAt(Math.floor(Math.random() * chars.length))
-        }
+        for (let i = 0; i < 12; i++) password += chars.charAt(Math.floor(Math.random() * chars.length))
         await navigator.clipboard.writeText(password)
         return { success: true, detail: `생성된 비밀번호: ${password}\n클립보드에 복사되었습니다.` }
       }
@@ -75,16 +121,12 @@ export default function Automation() {
         try {
           let text = await navigator.clipboard.readText()
           if (!text) return { success: false, detail: '클립보드에 텍스트가 없습니다.' }
-          
           let count = 0
-          // 주민번호 
-          text = text.replace(/(\d{6})[- ]?(\d{7})/g, (match, p1, p2) => { count++; return `${p1}-*******` })
-          // 폰번호
-          text = text.replace(/(01[016789])[- ]?(\d{3,4})[- ]?(\d{4})/g, (match, p1, p2, p3) => { count++; return `${p1}-****-${p3}` })
-          
+          text = text.replace(/(\d{6})[- ]?(\d{7})/g, (_, p1) => { count++; return `${p1}-*******` })
+          text = text.replace(/(01[016789])[- ]?(\d{3,4})[- ]?(\d{4})/g, (_, p1, _p2, p3) => { count++; return `${p1}-****-${p3}` })
           await navigator.clipboard.writeText(text)
           return { success: true, detail: `${count}건의 개인정보가 마스킹 되었습니다.\n클립보드에 다시 복사되었습니다.` }
-        } catch (e) {
+        } catch {
           return { success: false, detail: '텍스트 읽기/쓰기 오류' }
         }
       }
@@ -100,7 +142,7 @@ export default function Automation() {
         label: task.label,
         success: res.success,
         detail: res.success
-          ? (res.results ? `${res.results.length}개 파일 처리\n${res.results.slice(0, 5).join('\n')}` : res.error || '완료')
+          ? (res.results ? `${res.results.length}개 파일 처리\n${res.results.slice(0, 5).join('\n')}` : (res as { detail?: string }).detail || '완료')
           : (res.error || '오류 발생')
       })
     } catch (e: unknown) {
@@ -110,9 +152,8 @@ export default function Automation() {
     }
   }
 
-
   return (
-    <div className="fade-in space-y-4">
+    <div className="fade-in space-y-4 pb-8">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center"
           style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
@@ -124,7 +165,76 @@ export default function Automation() {
         </div>
       </div>
 
-      {/* 이름 변경 옵션 */}
+      {/* ===== 한글 금액 변환기 ===== */}
+      <div className="card space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🔢</span>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>공문서 한글 금액 변환기</p>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>숫자를 공문서용 한글 금액으로 자동 변환 (예: 1500000 → 금 일백오십만원정)</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <input className="input flex-1" type="text" placeholder="예: 1500000 또는 1,500,000"
+            value={amountInput} onChange={e => setAmountInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && convertAmount()} />
+          <button onClick={convertAmount}
+            className="px-4 py-2 rounded-lg text-xs font-medium text-white transition-all"
+            style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
+            변환
+          </button>
+        </div>
+        {amountResult && (
+          <div className="flex items-center justify-between rounded-lg px-3 py-2.5"
+            style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.25)' }}>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{amountResult}</span>
+            <button onClick={() => navigator.clipboard.writeText(amountResult)}
+              className="ml-3 p-1.5 rounded hover:bg-white/10 transition-colors flex-shrink-0"
+              title="복사">
+              <Copy size={13} style={{ color: 'var(--text-muted)' }} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ===== 공문서 날짜·기간 계산기 ===== */}
+      <div className="card space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">📅</span>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>공문서 날짜·기간 계산기</p>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>시작일~종료일을 입력하면 공문서 표준 기간 표기와 일수를 자동 계산</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="label">시작일</label>
+            <input className="input" type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">종료일</label>
+            <input className="input" type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} />
+          </div>
+        </div>
+        <button onClick={calcDateRange}
+          className="w-full py-2 rounded-lg text-xs font-medium text-white transition-all"
+          style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
+          기간 계산
+        </button>
+        {dateResult && (
+          <div className="relative rounded-lg px-3 py-2.5"
+            style={{ background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.25)' }}>
+            <pre className="text-xs whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>{dateResult}</pre>
+            <button onClick={() => navigator.clipboard.writeText(dateResult)}
+              className="absolute top-2 right-2 p-1.5 rounded hover:bg-white/10 transition-colors"
+              title="복사">
+              <Copy size={13} style={{ color: 'var(--text-muted)' }} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* 파일 이름변경 옵션 */}
       <div className="card">
         <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>파일 이름변경 설정</p>
         <div className="flex gap-3">
@@ -141,8 +251,8 @@ export default function Automation() {
 
       {/* 실행 가능한 도구 */}
       <div>
-        <p className="section-title">사용 가능한 도구</p>
-        <div className="grid grid-cols-3 gap-3">
+        <p className="section-title">기타 도구</p>
+        <div className="grid grid-cols-2 gap-3">
           {TASKS.map(task => (
             <button key={task.label} onClick={() => run(task)}
               disabled={running === task.label}
@@ -159,8 +269,6 @@ export default function Automation() {
           ))}
         </div>
       </div>
-
-
 
       {/* 결과 */}
       {result && (

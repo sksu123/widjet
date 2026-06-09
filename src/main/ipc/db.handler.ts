@@ -250,4 +250,36 @@ export function registerDbHandlers(): void {
     db.prepare(`INSERT INTO audit_log (action, module, detail) VALUES (?, ?, ?)`).run(action, module, detail)
     return { success: true }
   })
+
+  // ===== 주요 연락처 =====
+  ipcMain.handle('db:get-contacts', async () => {
+    const db = getDb()
+    const rows = db.prepare('SELECT * FROM contacts ORDER BY sort_order ASC, id ASC').all()
+    return { success: true, data: rows }
+  })
+
+  ipcMain.handle('db:add-contact', async (_, data: Record<string, unknown>) => {
+    const db = getDb()
+    const maxOrder = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM contacts').get() as { m: number }).m
+    db.prepare(`
+      INSERT INTO contacts (name, phone, email, note, sort_order)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(data.name, data.phone || '', data.email || '', data.note || '', maxOrder + 1)
+    return { success: true }
+  })
+
+  ipcMain.handle('db:update-contact', async (_, id: number, data: Record<string, unknown>) => {
+    const db = getDb()
+    db.prepare(`
+      UPDATE contacts SET name=?, phone=?, email=?, note=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).run(data.name, data.phone || '', data.email || '', data.note || '', id)
+    return { success: true }
+  })
+
+  ipcMain.handle('db:delete-contact', async (_, id: number) => {
+    const db = getDb()
+    db.prepare('DELETE FROM contacts WHERE id=?').run(id)
+    return { success: true }
+  })
 }

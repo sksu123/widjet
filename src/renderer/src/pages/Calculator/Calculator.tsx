@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Calculator, Save, RefreshCw } from 'lucide-react'
 
-type CalcType = 'travel' | 'instructor' | 'vat' | 'insurance' | 'overtime' | 'severance'
+type CalcType = 'travel' | 'instructor' | 'vat' | 'insurance' | 'tax'
 
 interface CalcResult { label: string; value: string; highlight?: boolean }
 
@@ -117,44 +117,53 @@ export default function CalculatorPage() {
     ])
   }
 
-  // ===== 초과근무수당 =====
-  const [overtime, setOvertime] = useState({ salary: '3000000', hours: '10' })
-  const calcOvertime = () => {
-    const salary = parseInt(overtime.salary) || 0
-    const hours = parseFloat(overtime.hours) || 0
-    const hourlyRate = Math.floor(salary / 209)
-    const overtimePay = Math.floor(hourlyRate * 1.5 * hours)
+  // ===== 원천세 계산 =====
+  const [taxCalc, setTaxCalc] = useState({ incomeType: '기타소득', amount: '100000' })
+  const calcTax = () => {
+    const amount = parseInt(taxCalc.amount.replace(/,/g, '')) || 0
+    let incomeTax = 0, localTax = 0, expense = 0, taxBase = 0, note = ''
 
+    if (taxCalc.incomeType === '기타소득') {
+      expense = Math.floor(amount * 0.6)
+      taxBase = amount - expense
+      incomeTax = Math.floor(taxBase * 0.2)
+      localTax = Math.floor(incomeTax * 0.1)
+      note = '(필요경비 60% 공제 후 20% 적용)'
+    } else if (taxCalc.incomeType === '사업소득') {
+      taxBase = amount
+      incomeTax = Math.floor(amount * 0.03)
+      localTax = Math.floor(incomeTax * 0.1)
+      note = '(소득세 3% + 지방소득세 0.3%)'
+    } else if (taxCalc.incomeType === '근로소득(일용직)') {
+      taxBase = Math.max(amount - 150000, 0)
+      incomeTax = Math.floor(taxBase * 0.06 * 0.45)
+      localTax = Math.floor(incomeTax * 0.1)
+      note = '(15만원 공제 후 6%×45%)'
+    } else if (taxCalc.incomeType === '이자·배당소득') {
+      taxBase = amount
+      incomeTax = Math.floor(amount * 0.14)
+      localTax = Math.floor(incomeTax * 0.1)
+      note = '(소득세 14% + 지방소득세 1.4%)'
+    }
+
+    const totalTax = incomeTax + localTax
     setResult([
-      { label: '시간당 통상임금', value: `${hourlyRate.toLocaleString()}원` },
-      { label: '초과근무 시간', value: `${hours}시간` },
-      { label: '초과근무수당 (150%)', value: `${overtimePay.toLocaleString()}원`, highlight: true },
-    ])
-  }
-
-  // ===== 퇴직금 계산 =====
-  const [severance, setSeverance] = useState({ salary: '3000000', months: '36' })
-  const calcSeverance = () => {
-    const salary = parseInt(severance.salary) || 0
-    const months = parseInt(severance.months) || 0
-    const years = months / 12
-    const amount = Math.floor(salary * years)
-
-    setResult([
-      { label: '근속 연수', value: `${years.toFixed(1)}년 (${months}개월)` },
-      { label: '월 통상임금', value: `${salary.toLocaleString()}원` },
-      { label: '퇴직금 (세전)', value: `${amount.toLocaleString()}원`, highlight: true },
-      { label: '퇴직소득세 (추정)', value: `${Math.floor(amount * 0.03).toLocaleString()}원` },
+      { label: '지급(지출) 금액', value: `${amount.toLocaleString()}원` },
+      ...(expense > 0 ? [{ label: '필요경비 (60%)', value: `${expense.toLocaleString()}원` }] : []),
+      { label: '과세표준', value: `${taxBase.toLocaleString()}원` },
+      { label: `소득세 ${note}`, value: `${incomeTax.toLocaleString()}원` },
+      { label: '지방소득세 (소득세×10%)', value: `${localTax.toLocaleString()}원` },
+      { label: '원천징수 합계', value: `${totalTax.toLocaleString()}원`, highlight: true },
+      { label: '실 지급액', value: `${(amount - totalTax).toLocaleString()}원`, highlight: true },
     ])
   }
 
   const CALCS = [
-    { key: 'travel', label: '여비 (새창)', icon: '✈️', run: () => {} },
+    { key: 'travel', label: '여비 (새창)', subLabel: '제작: 해남우수영초 전현우', icon: '✈️', run: () => {} },
     { key: 'instructor', label: '강사수당', icon: '👨‍🏫', run: calcInstructor },
     { key: 'vat', label: '부가세', icon: '📊', run: calcVat },
     { key: 'insurance', label: '4대보험', icon: '🏥', run: calcInsurance },
-    { key: 'overtime', label: '초과근무', icon: '⏰', run: calcOvertime },
-    { key: 'severance', label: '퇴직금', icon: '💼', run: calcSeverance },
+    { key: 'tax', label: '원천세', icon: '🧾', run: calcTax },
   ]
 
   const activeCalcDef = CALCS.find(c => c.key === activeCalc)
@@ -173,8 +182,7 @@ export default function CalculatorPage() {
         activeCalc === 'travel' ? travel :
         activeCalc === 'instructor' ? instructor :
         activeCalc === 'vat' ? vatCalc :
-        activeCalc === 'insurance' ? insurance :
-        activeCalc === 'overtime' ? overtime : severance
+        activeCalc === 'tax' ? taxCalc : insurance
       ),
       result_data: text
     })
@@ -192,8 +200,8 @@ export default function CalculatorPage() {
       </div>
 
       {/* 계산기 선택 */}
-      <div className="grid grid-cols-6 gap-2">
-        {CALCS.map(({ key, label, icon }) => (
+      <div className="grid grid-cols-5 gap-2">
+        {CALCS.map(({ key, label, icon, subLabel }) => (
           <button
             key={key}
             onClick={() => {
@@ -212,6 +220,7 @@ export default function CalculatorPage() {
           >
             <span className="text-base">{icon}</span>
             <span>{label}</span>
+            {subLabel && <span className="text-[9px] opacity-60 leading-tight text-center px-1">{subLabel}</span>}
           </button>
         ))}
       </div>
@@ -267,23 +276,43 @@ export default function CalculatorPage() {
             </>
           )}
 
-          {(activeCalc === 'insurance' || activeCalc === 'overtime' || activeCalc === 'severance') && (
+          {activeCalc === 'insurance' && (
             <div><label className="label">월 급여 (원)</label>
               <input className="input"
-                value={activeCalc === 'insurance' ? insurance.salary : activeCalc === 'overtime' ? overtime.salary : severance.salary}
-                onChange={e => {
-                  if (activeCalc === 'insurance') setInsurance({ salary: e.target.value })
-                  else if (activeCalc === 'overtime') setOvertime({ ...overtime, salary: e.target.value })
-                  else setSeverance({ ...severance, salary: e.target.value })
-                }} type="number" /></div>
+                value={insurance.salary}
+                onChange={e => setInsurance({ salary: e.target.value })}
+                type="number" /></div>
           )}
-          {activeCalc === 'overtime' && (
-            <div><label className="label">초과근무 시간</label>
-              <input className="input" value={overtime.hours} onChange={e => setOvertime({ ...overtime, hours: e.target.value })} type="number" step="0.5" /></div>
-          )}
-          {activeCalc === 'severance' && (
-            <div><label className="label">근속 개월수</label>
-              <input className="input" value={severance.months} onChange={e => setSeverance({ ...severance, months: e.target.value })} type="number" /></div>
+
+          {activeCalc === 'tax' && (
+            <>
+              <div>
+                <label className="label">소득 구분</label>
+                <select className="input" value={taxCalc.incomeType}
+                  onChange={e => setTaxCalc({ ...taxCalc, incomeType: e.target.value })}>
+                  <option value="기타소득">기타소득 (강사료·원고료·자문료 등)</option>
+                  <option value="사업소득">사업소득 (프리랜서·인적용역 등)</option>
+                  <option value="근로소득(일용직)">근로소득 — 일용직 (일당 기준)</option>
+                  <option value="이자·배당소득">이자·배당소득 (14%)</option>
+                </select>
+                {/* 소득 구분별 안내 */}
+                <p className="text-[10px] mt-1.5 px-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  {taxCalc.incomeType === '기타소득' && '필요경비 60% 공제 후 소득세 20% 적용 (실효세율 8.8%)'}
+                  {taxCalc.incomeType === '사업소득' && '소득세 3% + 지방소득세 0.3% = 총 3.3%'}
+                  {taxCalc.incomeType === '근로소득(일용직)' && '1일 15만원 공제 후 6% × 45% 적용'}
+                  {taxCalc.incomeType === '이자·배당소득' && '소득세 14% + 지방소득세 1.4% = 총 15.4%'}
+                </p>
+              </div>
+              <div>
+                <label className="label">
+                  {taxCalc.incomeType === '근로소득(일용직)' ? '일당 (원)' : '지급 금액 (원)'}
+                </label>
+                <input className="input" type="number"
+                  value={taxCalc.amount}
+                  onChange={e => setTaxCalc({ ...taxCalc, amount: e.target.value })}
+                  placeholder="예: 100000" />
+              </div>
+            </>
           )}
 
           <button onClick={handleCalculate} className="btn-primary w-full justify-center">
@@ -308,12 +337,14 @@ export default function CalculatorPage() {
                   </span>
                 </div>
               ))}
-              <button
-                onClick={handleSave}
-                className={`btn w-full justify-center mt-2 text-xs ${saved ? 'btn-ghost' : 'btn-primary'}`}
-              >
-                <Save size={12} /> {saved ? '저장됨 ✓' : '결과 저장'}
-              </button>
+              {activeCalc !== 'tax' && (
+                <button
+                  onClick={handleSave}
+                  className={`btn w-full justify-center mt-2 text-xs ${saved ? 'btn-ghost' : 'btn-primary'}`}
+                >
+                  <Save size={12} /> {saved ? '저장됨 ✓' : '결과 저장'}
+                </button>
+              )}
             </div>
           )}
         </div>
