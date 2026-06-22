@@ -22,7 +22,9 @@ const api = {
     processVoice: (text: string) =>
       ipcRenderer.invoke('ai:process-voice', text),
     getHistory: (limit?: number) =>
-      ipcRenderer.invoke('ai:get-history', limit)
+      ipcRenderer.invoke('ai:get-history', limit),
+    weatherSummary: (weatherData: any) =>
+      ipcRenderer.invoke('ai:weather-summary', weatherData)
   },
 
   // 데이터베이스
@@ -60,8 +62,14 @@ const api = {
 
     getContacts: () => ipcRenderer.invoke('db:get-contacts'),
     addContact: (data: Record<string, unknown>) => ipcRenderer.invoke('db:add-contact', data),
+    addContactsBulk: (data: Record<string, unknown>[]) => ipcRenderer.invoke('db:add-contacts-bulk', data),
     updateContact: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('db:update-contact', id, data),
-    deleteContact: (id: number) => ipcRenderer.invoke('db:delete-contact', id)
+    deleteContact: (id: number) => ipcRenderer.invoke('db:delete-contact', id),
+
+    getMemos: () => ipcRenderer.invoke('db:get-memos'),
+    addMemo: (data: Record<string, unknown>) => ipcRenderer.invoke('db:add-memo', data),
+    updateMemo: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('db:update-memo', id, data),
+    deleteMemo: (id: number) => ipcRenderer.invoke('db:delete-memo', id)
   },
 
   // 파일
@@ -72,24 +80,46 @@ const api = {
       ipcRenderer.invoke('file:batch-rename', folderPath, prefix, startNum),
     saveImage: (sourcePath: string, category: string) => ipcRenderer.invoke('file:save-image', sourcePath, category),
     backupDb: () => ipcRenderer.invoke('file:backup-db'),
+    restoreDb: () => ipcRenderer.invoke('file:restore-db'),
     saveText: (content: string, filename: string) => ipcRenderer.invoke('file:save-text', content, filename),
-    getUserDataPath: () => ipcRenderer.invoke('file:get-user-data-path')
+    getUserDataPath: () => ipcRenderer.invoke('file:get-user-data-path'),
+    getFavorites: () => ipcRenderer.invoke('file:get-favorites'),
+    addFavorite: (name: string, path: string, type: string) => ipcRenderer.invoke('file:add-favorite', name, path, type),
+    removeFavorite: (id: number) => ipcRenderer.invoke('file:remove-favorite', id),
+    openPath: (path: string) => ipcRenderer.invoke('file:open-path', path)
   },
 
   // 캘린더/날씨
   calendar: {
-    getWeather: (city?: string) => ipcRenderer.invoke('calendar:get-weather', city),
+    getWeather: (forceRefresh?: boolean) => ipcRenderer.invoke('calendar:get-weather', forceRefresh),
     getToday: () => ipcRenderer.invoke('calendar:get-today'),
     getMonth: (year: number, month: number) => ipcRenderer.invoke('calendar:get-month', year, month),
     getDday: () => ipcRenderer.invoke('calendar:get-dday'),
     toggleScheduleStatus: (id: number, is_completed: number) => ipcRenderer.invoke('calendar:toggle-schedule-status', id, is_completed),
-    getMeal: (targetDate?: string) => ipcRenderer.invoke('calendar:get-meal', targetDate)
+    getMeal: (targetDate?: string) => ipcRenderer.invoke('calendar:get-meal', targetDate),
+    searchSchool: (schoolName: string) => ipcRenderer.invoke('calendar:search-school', schoolName),
+    searchWeatherCity: (query: string) => ipcRenderer.invoke('calendar:search-weather-city', query),
+    getSchoolSchedule: (year: number, month: number) => ipcRenderer.invoke('calendar:get-school-schedule', year, month)
   },
 
   // 시스템 (자동 실행 등)
   system: {
     setLoginItem: (openAtLogin: boolean) => ipcRenderer.invoke('system:set-login-item', openAtLogin),
     getLoginItem: () => ipcRenderer.invoke('system:get-login-item')
+  },
+
+  // 업데이트
+  updater: {
+    checkForUpdates: () => ipcRenderer.invoke('updater:check'),
+    onUpdateAvailable: (callback: (info: any) => void) => {
+      ipcRenderer.on('updater:update-available', (_, info) => callback(info))
+    },
+    onUpdateNotAvailable: (callback: () => void) => {
+      ipcRenderer.on('updater:update-not-available', () => callback())
+    },
+    onError: (callback: (err: string) => void) => {
+      ipcRenderer.on('updater:error', (_, err) => callback(err))
+    }
   }
 }
 

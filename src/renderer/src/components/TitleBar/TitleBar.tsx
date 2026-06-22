@@ -29,7 +29,7 @@ export default function TitleBar() {
   return (
     <div
       className="drag flex items-center justify-between px-4 h-10 flex-shrink-0"
-      style={{ background: 'rgba(15,23,42,0.95)', borderBottom: '1px solid var(--border)' }}
+      style={{ background: 'var(--bg-titlebar, var(--bg-secondary))', borderBottom: '1px solid var(--border)' }}
     >
       {/* 앱 정보 */}
       <div className="flex items-center gap-2 no-drag" style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}>

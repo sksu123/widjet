@@ -4,21 +4,22 @@ import { join } from 'path'
 let tray: Tray | null = null
 
 export function setupTray(mainWindow: BrowserWindow): void {
-  const iconPath = join(__dirname, '../../resources/icon.png')
+  // 트레이 전용 아이콘 (tray.png 우선 → icon.png fallback)
   let icon: Electron.NativeImage
-
   try {
-    icon = nativeImage.createFromPath(iconPath)
-    if (icon.isEmpty()) {
-      icon = nativeImage.createFromDataURL(
-        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAAN0lEQVQ4jWNgGAWkgv8kMJCKGf4TqZmJimb+J1IzExXN/E+kZiYqmvmfSM1MVDTzP5GamcgHABmRBRMx7Xs4AAAAAElFTkSuQmCC'
-      )
+    const trayIconPath = join(__dirname, '../../resources/tray.png')
+    const mainIconPath = join(__dirname, '../../resources/icon.png')
+    let loaded = nativeImage.createFromPath(trayIconPath)
+    if (loaded.isEmpty()) {
+      loaded = nativeImage.createFromPath(mainIconPath)
     }
+    icon = loaded.isEmpty() ? nativeImage.createEmpty() : loaded
   } catch {
     icon = nativeImage.createEmpty()
   }
 
   tray = new Tray(icon)
+
 
   const contextMenu = Menu.buildFromTemplate([
     {

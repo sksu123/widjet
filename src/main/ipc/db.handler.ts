@@ -262,18 +262,71 @@ export function registerDbHandlers(): void {
     const db = getDb()
     const maxOrder = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM contacts').get() as { m: number }).m
     db.prepare(`
-      INSERT INTO contacts (name, phone, email, note, sort_order)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(data.name, data.phone || '', data.email || '', data.note || '', maxOrder + 1)
+      INSERT INTO contacts (type, name, department, phone, mobile, ceo_name, email, note, sort_order, is_favorite)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      data.type || 'staff',
+      data.name,
+      data.department || '',
+      data.phone || '',
+      data.mobile || '',
+      data.ceo_name || '',
+      data.email || '',
+      data.note || '',
+      maxOrder + 1,
+      data.is_favorite ? 1 : 0
+    )
+    return { success: true }
+  })
+
+  ipcMain.handle('db:add-contacts-bulk', async (_, contacts: Record<string, unknown>[]) => {
+    const db = getDb()
+    let maxOrder = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM contacts').get() as { m: number }).m
+    
+    const insert = db.prepare(`
+      INSERT INTO contacts (type, name, department, phone, mobile, ceo_name, email, note, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    const insertMany = db.transaction((dataList: Record<string, unknown>[]) => {
+      for (const item of dataList) {
+        if (!item.name) continue // 이름이 없으면 건너뜀
+        maxOrder++
+        insert.run(
+          item.type || 'staff',
+          item.name,
+          item.department || '',
+          item.phone || '',
+          item.mobile || '',
+          item.ceo_name || '',
+          item.email || '',
+          item.note || '',
+          maxOrder
+        )
+      }
+    })
+
+    insertMany(contacts)
     return { success: true }
   })
 
   ipcMain.handle('db:update-contact', async (_, id: number, data: Record<string, unknown>) => {
     const db = getDb()
     db.prepare(`
-      UPDATE contacts SET name=?, phone=?, email=?, note=?, updated_at=CURRENT_TIMESTAMP
+      UPDATE contacts SET type=?, name=?, department=?, phone=?, mobile=?, ceo_name=?, email=?, note=?, is_favorite=COALESCE(?, is_favorite), updated_at=CURRENT_TIMESTAMP
       WHERE id=?
-    `).run(data.name, data.phone || '', data.email || '', data.note || '', id)
+    `).run(
+      data.type || 'staff',
+      data.name,
+      data.department || '',
+      data.phone || '',
+      data.mobile || '',
+      data.ceo_name || '',
+      data.email || '',
+      data.note || '',
+      data.is_favorite !== undefined ? (data.is_favorite ? 1 : 0) : null,
+      id
+    )
     return { success: true }
   })
 
@@ -281,5 +334,109 @@ export function registerDbHandlers(): void {
     const db = getDb()
     db.prepare('DELETE FROM contacts WHERE id=?').run(id)
     return { success: true }
+  })
+
+  ipcMain.handle('db:toggle-contact-favorite', async (_, id: number, is_favorite: boolean) => {
+    const db = getDb()
+    db.prepare('UPDATE contacts SET is_favorite=? WHERE id=?').run(is_favorite ? 1 : 0, id)
+    return { success: true }
+  })
+
+  ipcMain.handle('db:sync-contacts-bulk', async (_, data: { updates: Record<string, unknown>[], deletes: number[] }) => {
+    const db = getDb()
+    let maxOrder = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM contacts').get() as { m: number }).m
+    
+    const insertStmt = db.prepare(`
+      INSERT INTO contacts (type, name, department, phone, mobile, ceo_name, email, note, is_favorite, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    const updateStmt = db.prepare(`
+      UPDATE contacts SET type=?, name=?, department=?, phone=?, mobile=?, ceo_name=?, email=?, note=?, is_favorite=?, sort_order=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `)
+    const deleteStmt = db.prepare('DELETE FROM contacts WHERE id=?')
+
+    const syncTransaction = db.transaction((updates: Record<string, unknown>[], deletes: number[]) => {
+      for (const id of deletes) {
+        deleteStmt.run(id)
+      }
+      for (const item of updates) {
+        if (!item.name) continue
+        
+        const isFav = item.is_favorite ? 1 : 0
+        
+        if (typeof item.id === 'number' && item.id > 0) {
+          updateStmt.run(
+            item.type || 'staff', item.name, item.department || '', item.phone || '', item.mobile || '',
+            item.ceo_name || '', item.email || '', item.note || '', isFav, item.sort_order || 0, item.id
+          )
+        } else {
+          maxOrder++
+          insertStmt.run(
+            item.type || 'staff', item.name, item.department || '', item.phone || '', item.mobile || '',
+            item.ceo_name || '', item.email || '', item.note || '', isFav, maxOrder
+          )
+        }
+      }
+    })
+
+    syncTransaction(data.updates, data.deletes)
+    return { success: true }
+  })
+
+  // ===== 메모 (포스트잇) =====
+  ipcMain.handle('db:get-memos', async () => {
+    try {
+      const db = getDb()
+      const rows = db.prepare('SELECT * FROM memos ORDER BY z_index ASC').all()
+      return { success: true, data: rows }
+    } catch (e: any) {
+      return { success: false, error: e.message }
+    }
+  })
+
+  ipcMain.handle('db:add-memo', async (_, data: Record<string, unknown>) => {
+    try {
+      const db = getDb()
+      const stmt = db.prepare(`
+        INSERT INTO memos (title, content, color, x, y, width, height, z_index, is_pinned)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      const info = stmt.run(
+        data.title || '', data.content || '', data.color || '#fef3c7',
+        data.x || 100, data.y || 100, data.width || 250, data.height || 250,
+        data.z_index || 10, data.is_pinned || 0
+      )
+      return { success: true, id: info.lastInsertRowid }
+    } catch (e: any) {
+      return { success: false, error: e.message }
+    }
+  })
+
+  ipcMain.handle('db:update-memo', async (_, id: number, data: Record<string, unknown>) => {
+    try {
+      const db = getDb()
+      
+      const keys = Object.keys(data).filter(k => ['title', 'content', 'color', 'x', 'y', 'width', 'height', 'z_index', 'is_pinned'].includes(k))
+      if (keys.length === 0) return { success: true }
+      
+      const setClause = keys.map(k => `${k}=?`).join(', ') + ', updated_at=CURRENT_TIMESTAMP'
+      const values = keys.map(k => data[k])
+      
+      db.prepare(`UPDATE memos SET ${setClause} WHERE id=?`).run(...values, id)
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, error: e.message }
+    }
+  })
+
+  ipcMain.handle('db:delete-memo', async (_, id: number) => {
+    try {
+      const db = getDb()
+      db.prepare('DELETE FROM memos WHERE id=?').run(id)
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, error: e.message }
+    }
   })
 }

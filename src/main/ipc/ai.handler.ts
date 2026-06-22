@@ -152,4 +152,28 @@ export function registerAiHandlers(): void {
       return { success: false, error: message }
     }
   })
+
+  // 날씨 기반 행정 요약
+  ipcMain.handle('ai:weather-summary', async (_, weatherData: any) => {
+    try {
+      const ai = getGenAI()
+      const model = ai.getGenerativeModel({ model: 'gemini-3.1-flash-lite', systemInstruction: SYSTEM_PROMPT })
+      const prompt = `다음은 오늘 우리 동네 날씨 정보입니다:
+지역: ${weatherData.city}
+현재 온도: ${weatherData.temp}
+날씨 상태: ${weatherData.description}
+미세먼지: ${weatherData.pm10}
+초미세먼지: ${weatherData.pm25}
+오존: ${weatherData.ozone}
+
+이 날씨 정보를 바탕으로 학교 행정실 업무(현장체험학습 점검, 시설물 안전, 등하교 안전, 미세먼지 대응 등)와 연계된 간단한 안내/경고 문구를 1~2문장으로 작성해주세요.
+예시 형식: "오늘 담양은 흐리고 오후 강수확률이 높습니다. 우산을 준비하고 시설물 배수로를 점검하세요."`
+
+      const result = await model.generateContent(prompt)
+      return { success: true, text: result.response.text() }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      return { success: false, error: message }
+    }
+  })
 }

@@ -8,6 +8,7 @@ directories:
 
 files:
   - out
+  - resources
   - "!**/.vscode/*"
   - "!src/*"
   - "!electron.vite.config.*"

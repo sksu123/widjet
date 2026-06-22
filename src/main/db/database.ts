@@ -28,6 +28,10 @@ export async function setupDatabase(): Promise<void> {
   createTables()
   seedInitialData()
 
+  // 마이그레이션: contacts 테이블에 is_favorite, sort_order 컬럼이 없을 경우 추가
+  try { db.exec('ALTER TABLE contacts ADD COLUMN is_favorite INTEGER DEFAULT 0'); } catch(e) {}
+  try { db.exec('ALTER TABLE contacts ADD COLUMN sort_order INTEGER DEFAULT 0'); } catch(e) {}
+
   console.log('✅ Database initialized:', dbPath)
 }
 
@@ -157,25 +161,68 @@ function createTables(): void {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- 주요 연락수랙
+    -- 주요 연락처
     CREATE TABLE IF NOT EXISTS contacts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT DEFAULT 'staff',
       name TEXT NOT NULL,
+      department TEXT,
       phone TEXT,
+      mobile TEXT,
+      ceo_name TEXT,
       email TEXT,
       note TEXT,
       sort_order INTEGER DEFAULT 0,
+      is_favorite INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 파일/폴더 즐겨찾기
+    CREATE TABLE IF NOT EXISTS favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      path TEXT NOT NULL,
+      type TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 메모 (포스트잇)
+    CREATE TABLE IF NOT EXISTS memos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT DEFAULT '',
+      content TEXT DEFAULT '',
+      color TEXT DEFAULT '#fef3c7',
+      x INTEGER DEFAULT 100,
+      y INTEGER DEFAULT 100,
+      width INTEGER DEFAULT 250,
+      height INTEGER DEFAULT 250,
+      z_index INTEGER DEFAULT 10,
+      is_pinned INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `)
   
-  // 마이그레이션: 기존 schedules 테이블에 is_completed가 없다면 추가
+  // 마이그레이션
+  try { db.exec(`ALTER TABLE schedules ADD COLUMN is_completed INTEGER DEFAULT 0;`) } catch (e) { /* ignore */ }
+  
+  // 연락처 마이그레이션 (기존 컬럼 없으면 추가)
+  try { db.exec(`ALTER TABLE contacts ADD COLUMN type TEXT DEFAULT 'staff';`) } catch (e) { /* ignore */ }
+  try { db.exec(`ALTER TABLE contacts ADD COLUMN department TEXT;`) } catch (e) { /* ignore */ }
+  try { db.exec(`ALTER TABLE contacts ADD COLUMN mobile TEXT;`) } catch (e) { /* ignore */ }
+  try { db.exec(`ALTER TABLE contacts ADD COLUMN ceo_name TEXT;`) } catch (e) { /* ignore */ }
+  try { db.exec(`ALTER TABLE contacts ADD COLUMN is_favorite INTEGER DEFAULT 0;`) } catch (e) { /* ignore */ }
+  
+  // 사용자의 요청: "기존 연락처는 전체 삭제해 다시 입력할거야."
+  // 이미 삭제했는지 여부를 체크하기 위해 settings에 플래그를 저장할 수도 있지만,
+  // 1회성 마이그레이션으로 처리. 연락처 데이터가 예전 스키마 형태로 존재할 경우 삭제.
   try {
-    db.exec(`ALTER TABLE schedules ADD COLUMN is_completed INTEGER DEFAULT 0;`)
-  } catch (e) {
-    // 이미 존재하는 경우 무시
-  }
+    const checkLegacy = db.prepare('SELECT COUNT(*) as cnt FROM contacts WHERE type IS NULL').get() as {cnt: number};
+    if (checkLegacy && checkLegacy.cnt > 0) {
+      db.exec('DELETE FROM contacts');
+    }
+  } catch (e) { /* ignore */ }
 }
 
 function seedInitialData(): void {

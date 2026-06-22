@@ -1,18 +1,16 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import {
   Cloud, Sun, CloudRain, Wind, Droplets, Calendar as CalendarIcon, Clock,
   Bot, CreditCard, Package, Zap, BookOpen, ChevronRight, ChevronLeft,
   TrendingUp, Bell, Utensils, CheckCircle2, Circle, MapPin, RefreshCw, X as XIcon,
-  FolderHeart, Edit2, LayoutList, LayoutGrid, Folder, File, Plus, Trash2, Check, Pin
+  FolderHeart, Edit2, LayoutList, LayoutGrid, Folder, File, Plus, Trash2, Check
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday } from 'date-fns'
 
 import { RegionSelector } from '../../components/RegionSelector'
-import { StickyNote, MemoData } from '../../components/StickyNote'
-import FavoritesWidget from '../../components/FavoritesWidget/FavoritesWidget'
 
 interface WeatherData {
   city: string; temp: number | string; compareYm: string;
@@ -25,23 +23,11 @@ interface WeatherData {
 interface Schedule { id: number; title: string; start_date: string; category: string; color: string; days_left: number; is_completed: number }
 interface User { name: string; school_name: string; department: string }
 
-const CATEGORIES = [
-  { value: 'general', label: '일반' },
-  { value: 'exam', label: '시험' },
-  { value: 'meeting', label: '회의' },
-  { value: 'event', label: '행사' },
-  { value: 'finance', label: '재무' },
-  { value: 'holiday', label: '휴무' },
-]
-
-const getCategoryLabel = (cat: string) => CATEGORIES.find(c => c.value === cat)?.label || '일반'
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [weatherSummary, setWeatherSummary] = useState('')
   const [weatherSummaryLoading, setWeatherSummaryLoading] = useState(false)
-  const weatherSummaryCacheRef = useRef<Record<string, string>>({})
   const [todaySchedules, setTodaySchedules] = useState<Schedule[]>([])
   const [ddays, setDdays] = useState<Schedule[]>([])
   const [user, setUser] = useState<User>({ name: '관리자', school_name: '○○초등학교', department: '행정실' })
@@ -64,25 +50,13 @@ export default function Dashboard() {
   const [scheduleLoading, setScheduleLoading] = useState(false)
   const [scheduleError, setScheduleError] = useState('')
   
-  const [memos, setMemos] = useState<MemoData[]>([])
+  // 파일/폴더 즐겨찾기
+  const [favorites, setFavorites] = useState<{id: number; name: string; path: string; type: string}[]>([])
+  const [isFavoritesEdit, setIsFavoritesEdit] = useState(false)
   
   // 레이아웃 추가 상태
   const [showSchoolScheduleInCalendar, setShowSchoolScheduleInCalendar] = useState(true)
   const [rightTab, setRightTab] = useState<'todo' | 'school'>('todo')
-
-  // 연락처 검색
-  const [contacts, setContacts] = useState<{id: number; type: 'staff'|'company'; name: string; department?: string; ceo_name?: string; phone: string; mobile?: string; email: string; note: string}[]>([])
-  const [staffSearch, setStaffSearch] = useState('')
-  const [companySearch, setCompanySearch] = useState('')
-
-  // 캘린더 날짜 hover 팝업
-  const [hoveredDay, setHoveredDay] = useState<{
-    day: Date;
-    daySchedules: Schedule[];
-    daySchoolEvents: {eventName: string; isHoliday: boolean}[];
-    x: number;
-    y: number;
-  } | null>(null)
   
   const [widgetsConfig, setWidgetsConfig] = useState({
     weather: true,
@@ -109,20 +83,10 @@ export default function Dashboard() {
 
   async function loadWeatherSummary(wData: WeatherData) {
     if (!window.api.ai || !(window.api.ai as any).weatherSummary) return;
-    
-    const cacheKey = `${wData.city}-${wData.temp}-${wData.description}-${wData.pm10}`;
-    if (weatherSummaryCacheRef.current[cacheKey]) {
-      setWeatherSummary(weatherSummaryCacheRef.current[cacheKey]);
-      return;
-    }
-
     setWeatherSummaryLoading(true)
     try {
       const res = await (window.api.ai as any).weatherSummary(wData)
-      if (res.success) {
-        setWeatherSummary(res.text)
-        weatherSummaryCacheRef.current[cacheKey] = res.text;
-      }
+      if (res.success) setWeatherSummary(res.text)
     } finally {
       setWeatherSummaryLoading(false)
     }
@@ -130,14 +94,14 @@ export default function Dashboard() {
 
   async function loadData() {
     try {
-      const [weatherRes, todayRes, ddayRes, userRes, settingsRes, mealRes, contactsRes] = await Promise.all([
+      const [weatherRes, todayRes, ddayRes, userRes, settingsRes, mealRes, favRes] = await Promise.all([
         window.api.calendar.getWeather(),
         window.api.calendar.getToday(),
         window.api.calendar.getDday(),
         window.api.db.getUser(),
         window.api.db.getSettings(),
         window.api.calendar.getMeal ? window.api.calendar.getMeal() : Promise.resolve({ success: false, error: 'NEIS_NOT_CONFIGURED' }),
-        window.api.db.getContacts ? window.api.db.getContacts() : Promise.resolve({ success: true, data: [] })
+        window.api.file.getFavorites ? window.api.file.getFavorites() : Promise.resolve({ success: true, data: [] })
       ])
 
       if (weatherRes.success) setWeather(weatherRes.data as WeatherData)
@@ -169,12 +133,9 @@ export default function Dashboard() {
         }
       }
 
-
-      if (contactsRes && contactsRes.success) {
-        setContacts(contactsRes.data as any[])
+      if (favRes && favRes.success) {
+        setFavorites(favRes.data as any[])
       }
-
-      loadMemos()
 
       // 학사일정 초기 로드
       const y = new Date().getFullYear()
@@ -233,75 +194,63 @@ export default function Dashboard() {
     }
   }
 
-
-  async function loadMemos() {
-    if (!window.api.db.getMemos) return
-    const res = await window.api.db.getMemos()
-    if (res.success) setMemos(res.data as MemoData[])
+  // 즐겨찾기 다시 로드
+  async function loadFavorites() {
+    if (!window.api.file.getFavorites) return
+    const res = await window.api.file.getFavorites()
+    if (res.success) setFavorites(res.data as any[])
   }
 
-  const isAddingMemo = useRef(false)
-
-  async function handleAddMemo(x?: number, y?: number) {
-    if (!window.api.db.addMemo) return
-    // 연속 더블클릭으로 여러 장 생성 방지
-    if (isAddingMemo.current) return
-    isAddingMemo.current = true
-    setTimeout(() => { isAddingMemo.current = false }, 600)
-
-    const newZIndex = memos.length > 0 ? Math.max(...memos.map(m => m.z_index)) + 1 : 10
-
-    let offsetX = 8
-    let offsetY = 8
-    
-    if (memos.length > 0) {
-      // 기존 메모가 있을 때, 가장 최근에 추가된 메모(또는 배열 마지막 메모) 옆에 배치
-      const lastMemo = memos[memos.length - 1]
-      offsetX = (lastMemo.x || 8) + 230 // 기존 메모 너비(220) + 여백(10)
-      offsetY = lastMemo.y || 8
-      
-      // 화면 오른쪽 끝을 넘어갈 경우 적절히 처리 (선택사항, 일단은 무조건 오른쪽에 추가)
-    }
-
-    const res = await window.api.db.addMemo({
-      title: '', content: '', color: '#fef08a',
-      x: x !== undefined ? x : offsetX,
-      y: y !== undefined ? y : offsetY,
-      width: 220, height: 260, z_index: newZIndex, is_pinned: 0
-    })
-    if (res.success) loadMemos()
-  }
-
-  async function handleUpdateMemo(id: number, data: Partial<MemoData>) {
-    if (!window.api.db.updateMemo) return
-    setMemos(prev => prev.map(m => m.id === id ? { ...m, ...data } : m))
-    await window.api.db.updateMemo(id, data)
-  }
-
-  async function handleDeleteMemo(id: number) {
-    if (!window.api.db.deleteMemo) return
-    if (confirm('메모를 삭제하시겠습니까?')) {
-      await window.api.db.deleteMemo(id)
-      loadMemos()
+  // 즐겨찾기 수동 추가 다이얼로그
+  async function handleAddFavoriteDialog(type: 'file' | 'folder') {
+    if (!window.api.file.openDialog || !window.api.file.addFavorite) return
+    const options: any = { properties: type === 'folder' ? ['openDirectory'] : ['openFile'] }
+    const res = await window.api.file.openDialog(options)
+    if (res.success && res.paths && res.paths.length > 0) {
+      const path = res.paths[0]
+      const name = path.split('').pop() || path.split('/').pop() || 'Unknown'
+      await window.api.file.addFavorite(name, path, type)
+      loadFavorites()
     }
   }
 
-  async function handleClearMemos() {
-    if (!window.api.db.deleteMemo) return
-    if (memos.length === 0) return
-    if (confirm('보드에 있는 모든 메모를 일괄 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      await Promise.all(memos.map(m => window.api.db.deleteMemo!(m.id)))
-      loadMemos()
+  // 즐겨찾기 삭제
+  async function handleDeleteFavorite(id: number, e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!window.api.file.removeFavorite) return
+    if (confirm('이 항목을 즐겨찾기에서 제거하시겠습니까?')) {
+      await window.api.file.removeFavorite(id)
+      loadFavorites()
     }
   }
 
-  async function handleFocusMemo(id: number) {
-    const target = memos.find(m => m.id === id)
-    if (!target) return
-    const maxZ = Math.max(...memos.map(m => m.z_index), 10)
-    if (target.z_index < maxZ) {
-      handleUpdateMemo(id, { z_index: maxZ + 1 })
+  // 파일/폴더 열기
+  async function handleOpenFavorite(path: string) {
+    if (isFavoritesEdit) return
+    if (!window.api.file.openPath) return
+    const res = await window.api.file.openPath(path)
+    if (!res.success) {
+      alert(`열기 실패: ${res.error}`)
     }
+  }
+
+  // 드래그 앤 드롭
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    if (!window.api.file.addFavorite) return
+    const files = Array.from(e.dataTransfer.files)
+    for (const f of files) {
+      const path = (f as any).path
+      if (path) {
+        const isFolder = !f.name.includes('.') && f.size % 4096 === 0
+        await window.api.file.addFavorite(f.name, path, isFolder ? 'folder' : 'file')
+      }
+    }
+    loadFavorites()
   }
 
   const toggleSchedule = async (id: number, currentCompleted: number) => {
@@ -319,11 +268,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex gap-4 h-full fade-in pb-4">
+    <div className="flex gap-5 h-full fade-in pb-4">
       {/* ==================================================== */}
       {/* 좌측 패널: 대형 캘린더 (화면의 약 60~65% 차지) */}
       {/* ==================================================== */}
-      <div className="flex-1 flex flex-col min-w-0 rounded-2xl border p-5 shadow-sm" style={{ height: '70vh', background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="flex-1 flex flex-col min-w-0 rounded-2xl border p-5 shadow-sm" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         {/* 캘린더 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -416,30 +365,12 @@ export default function Dashboard() {
 
                 return (
                   <div key={idx} 
-                    className={`rounded-xl p-2 border flex flex-col transition-colors ${isTodayFlag ? 'ring-2 ring-blue-500 ring-offset-1' : ''} ${isCurrentMonth ? 'hover:shadow-md' : ''}`}
+                    className={`rounded-xl p-2 border flex flex-col transition-all ${isTodayFlag ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
                     style={{ 
                       background: isCurrentMonth ? 'rgba(0,0,0,0.015)' : 'rgba(0,0,0,0.03)',
                       borderColor: isTodayFlag ? 'rgba(59,130,246,0.3)' : 'var(--border)',
-                      opacity: isCurrentMonth ? 1 : 0.4,
-                      cursor: isCurrentMonth ? 'pointer' : 'default'
+                      opacity: isCurrentMonth ? 1 : 0.4
                     }}
-                    onClick={() => {
-                      if (!isCurrentMonth) return
-                      navigate('/calendar', { state: { addScheduleDate: format(day, 'yyyy-MM-dd') } })
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isCurrentMonth) return
-                      if (daySchedules.length === 0 && daySchoolEvents.length === 0) return
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      setHoveredDay({
-                        day,
-                        daySchedules,
-                        daySchoolEvents,
-                        x: rect.left + rect.width / 2,
-                        y: rect.top
-                      })
-                    }}
-                    onMouseLeave={() => setHoveredDay(null)}
                   >
                     {/* 날짜 텍스트 */}
                     <div className="flex justify-between items-start mb-1.5">
@@ -456,7 +387,6 @@ export default function Dashboard() {
                         <div key={`my-${i}`} className="text-[10px] truncate px-1.5 py-0.5 rounded"
                           style={{ background: `${s.color}20`, color: s.color || 'var(--text-primary)' }}>
                           <span className="w-1 h-1 inline-block rounded-full mr-1 align-middle" style={{ background: s.color }}/>
-                          <span className="font-bold mr-1 opacity-80">({getCategoryLabel(s.category)})</span>
                           {s.title}
                         </div>
                       ))}
@@ -475,54 +405,6 @@ export default function Dashboard() {
             })()}
           </div>
         </div>
-
-        {/* 캘린더 날짜 hover 팝업 (fixed - 레이아웃 흔들림 없음) */}
-        {hoveredDay && (() => {
-          const totalItems = hoveredDay.daySchedules.length + hoveredDay.daySchoolEvents.length
-          const popupH = 48 + totalItems * 28
-          const spaceBelow = window.innerHeight - hoveredDay.y
-          const showBelow = spaceBelow > popupH + 12
-          return (
-            <div
-              className="fixed z-[9999] pointer-events-none"
-              style={{
-                left: Math.min(hoveredDay.x - 100, window.innerWidth - 220),
-                top: showBelow ? hoveredDay.y + 8 : hoveredDay.y - popupH - 8,
-                width: 200
-              }}
-            >
-              <div className="rounded-xl shadow-2xl overflow-hidden"
-                style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                {/* 팝업 헤더 */}
-                <div className="px-3 py-2 font-bold text-xs"
-                  style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', color: 'var(--text-primary)' }}>
-                  {format(hoveredDay.day, 'M월 d일 (EEE)', { locale: ko })} 일정
-                </div>
-                <div className="p-2 space-y-1.5">
-                  {/* 내 일정 */}
-                  {hoveredDay.daySchedules.map((s, i) => (
-                    <div key={`p-my-${i}`} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
-                      style={{ background: `${s.color}18`, color: 'var(--text-primary)' }}>
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-                      <span className="truncate">
-                        <span className="font-bold mr-1 opacity-80" style={{ color: s.color }}>({getCategoryLabel(s.category)})</span>
-                        {s.title}
-                      </span>
-                    </div>
-                  ))}
-                  {/* 학사일정 */}
-                  {hoveredDay.daySchoolEvents.map((ev, i) => (
-                    <div key={`p-sc-${i}`} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
-                      style={{ background: ev.isHoliday ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)', color: ev.isHoliday ? '#ef4444' : 'var(--text-secondary)' }}>
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ev.isHoliday ? '#ef4444' : '#94a3b8' }} />
-                      <span className="truncate">{ev.eventName}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )
-        })()}
       </div>
 
       {/* ==================================================== */}
@@ -550,7 +432,6 @@ export default function Dashboard() {
           </div>
 
           {widgetsConfig.weather && weather && (
-            <>
             <div className="mt-2 flex items-center justify-between rounded-xl p-3 cursor-pointer transition-colors"
                  onClick={() => setShowWeatherModal(true)}
                  style={{ border: '1px solid var(--border)', background: 'rgba(0,0,0,0.05)' }}>
@@ -573,17 +454,6 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-            
-            {/* AI 날씨 요약 한줄 배치 */}
-            <div className="mt-1.5 flex items-center gap-1.5 px-2 py-1.5 rounded-lg border cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" 
-                 style={{ background: 'rgba(59,130,246,0.05)', borderColor: 'rgba(59,130,246,0.1)' }}
-                 onClick={() => setShowWeatherModal(true)}>
-              <Bot size={12} className="text-blue-500 shrink-0" />
-              <p className="text-[10.5px] truncate font-medium" style={{ color: 'var(--text-secondary)' }} title={weatherSummaryLoading ? '요약 중...' : weatherSummary}>
-                {weatherSummaryLoading ? 'AI 행정 날씨 브리핑 작성 중...' : (weatherSummary || '날씨 정보가 업데이트되었습니다.')}
-              </p>
-            </div>
-            </>
           )}
           
           {/* 장식용 블러 원 */}
@@ -621,53 +491,44 @@ export default function Dashboard() {
               <p className="text-[11px] text-center" style={{ color: 'var(--text-muted)' }}>급식 정보가 없습니다.</p>
             ) : (
               <div className="flex flex-col gap-2">
-                {/* 아침/점심/저녁 탭 선택 */}
-                <div className="flex items-center gap-1.5 mb-1">
-                  {meals.map(m => {
-                    const emoji = m.type === '1' ? '🌅' : m.type === '2' ? '☀️' : '🌙'
-                    const isSelected = selectedMealTypes.includes(m.type)
-                    const accentColor = m.type === '1' ? '#f59e0b' : m.type === '2' ? '#f97316' : '#6366f1'
-                    return (
-                      <button
-                        key={m.type}
-                        onClick={() => setSelectedMealTypes([m.type])}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
-                        style={{
-                          background: isSelected ? `${accentColor}22` : 'rgba(0,0,0,0.05)',
-                          color: isSelected ? accentColor : 'var(--text-muted)',
-                          border: `1.5px solid ${isSelected ? accentColor : 'transparent'}`,
-                          boxShadow: isSelected ? `0 0 0 1px ${accentColor}44` : 'none'
+                <div className="flex items-center justify-center gap-3 mb-1">
+                  {meals.map(m => (
+                    <label key={m.type} className="flex items-center gap-1 cursor-pointer text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                      <input 
+                        type="checkbox" 
+                        className="rounded text-emerald-500 focus:ring-emerald-500 w-3 h-3"
+                        checked={selectedMealTypes.includes(m.type)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedMealTypes([...selectedMealTypes, m.type])
+                          else setSelectedMealTypes(selectedMealTypes.filter(t => t !== m.type))
                         }}
-                      >
-                        {emoji} {m.typeName}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* 선택된 급식 메뉴 */}
-                {meals.filter(m => selectedMealTypes.includes(m.type)).map(m => (
-                  <div key={m.type}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                      />
+                      <span>
                         {m.type === '1' ? '🌅' : m.type === '2' ? '☀️' : '🌙'} {m.typeName}
                       </span>
-                      {m.kcal && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                          style={{ background: 'rgba(249,115,22,0.1)', color: '#ea580c' }}>
-                          {m.kcal}
+                    </label>
+                  ))}
+                </div>
+                
+                <div className="space-y-3 max-h-[150px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+                  {meals.filter(m => selectedMealTypes.includes(m.type)).length === 0 ? (
+                    <p className="text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>선택된 급식이 없습니다.</p>
+                  ) : meals.filter(m => selectedMealTypes.includes(m.type)).map(m => (
+                    <div key={m.type} className="flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                          {m.type === '1' ? '🌅' : m.type === '2' ? '☀️' : '🌙'} {m.typeName}
                         </span>
-                      )}
+                        {m.kcal && (
+                          <span className="text-[10px] font-bold" style={{ color: 'var(--text-muted)' }}>{m.kcal}</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] leading-relaxed font-medium pl-1" style={{ color: 'var(--text-secondary)' }}>
+                        {m.menus.map((menu, i) => <div key={i}>{menu}</div>)}
+                      </div>
                     </div>
-                    <div className="text-[11px] leading-relaxed pl-1 space-y-0.5 max-h-[120px] overflow-y-auto pr-1"
-                      style={{ color: 'var(--text-secondary)', scrollbarWidth: 'thin' }}>
-                      {m.menus.map((menu, i) => <div key={i}>{menu}</div>)}
-                    </div>
-                  </div>
-                ))}
-                {meals.filter(m => selectedMealTypes.includes(m.type)).length === 0 && (
-                  <p className="text-[10px] text-center py-2" style={{ color: 'var(--text-muted)' }}>선택된 급식이 없습니다.</p>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -712,7 +573,6 @@ export default function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-medium truncate ${s.is_completed === 1 ? 'line-through opacity-50' : ''}`}
                       style={{ color: 'var(--text-primary)' }}>
-                      <span className="font-bold mr-1 opacity-80" style={{ color: s.color }}>({getCategoryLabel(s.category)})</span>
                       {s.title}
                     </p>
                   </div>
@@ -732,239 +592,96 @@ export default function Dashboard() {
                   <CalendarIcon size={24} className="mb-2" style={{ color: 'var(--text-muted)' }} />
                   <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>이번 달 학사일정이 없습니다.</p>
                 </div>
-              ) : (
-                <div
-                  className="overflow-y-auto space-y-1 pr-1"
-                  style={{
-                    maxHeight: '288px',  /* 8줄 × 36px */
-                    scrollbarWidth: 'thin',
-                    scrollbarColor: 'var(--border) transparent'
-                  }}
-                >
-                  {schoolEvents.map((ev, i) => {
-                    const d = ev.date
-                    const mo = parseInt(d.substring(4, 6), 10)
-                    const da = parseInt(d.substring(6, 8), 10)
-                    const dayOfWeek = new Date(parseInt(d.substring(0, 4), 10), mo - 1, da).getDay()
-                    const dayNames = ['일','월','화','수','목','금','토']
-                    const isRed = ev.isHoliday || dayOfWeek === 0 || dayOfWeek === 6
-
-                    return (
-                      <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: isRed ? 'rgba(239,68,68,0.05)' : 'transparent', border: isRed ? '1px solid rgba(239,68,68,0.1)' : '1px solid transparent' }}>
-                        <span className="text-[11px] font-bold w-12 shrink-0 text-center" style={{ color: isRed ? '#ef4444' : 'var(--accent-blue)' }}>
-                          {mo}/{da}({dayNames[dayOfWeek]})
-                        </span>
-                        <span className="text-[11px] font-medium" style={{ color: isRed ? '#ef4444' : 'var(--text-primary)' }}>
-                          {ev.eventName}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
+              ) : schoolEvents.map((ev, i) => {
+                const d = ev.date
+                const mo = parseInt(d.substring(4, 6), 10)
+                const da = parseInt(d.substring(6, 8), 10)
+                const dayOfWeek = new Date(parseInt(d.substring(0, 4), 10), mo - 1, da).getDay()
+                const dayNames = ['일','월','화','수','목','금','토']
+                const isRed = ev.isHoliday || dayOfWeek === 0 || dayOfWeek === 6
+                
+                return (
+                  <div key={i} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: isRed ? 'rgba(239,68,68,0.05)' : 'transparent', border: isRed ? '1px solid rgba(239,68,68,0.1)' : '1px solid transparent' }}>
+                    <span className="text-[11px] font-bold w-12 text-center" style={{ color: isRed ? '#ef4444' : 'var(--accent-blue)' }}>
+                      {mo}/{da}({dayNames[dayOfWeek]})
+                    </span>
+                    <span className="text-[11px] font-medium" style={{ color: isRed ? '#ef4444' : 'var(--text-primary)' }}>
+                      {ev.eventName}
+                    </span>
+                  </div>
+                )
+              })
             )}
           </div>
         </div>
 
-              </div>
-
-            
-      {/* ============================================================ */}
-      {/* [3단] 우측 패널: 즐겨찾기, 메모 보드, 연락처 검색 (30%) */}
-      {/* ============================================================ */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
-
-        {/* 파일/폴더 즐겨찾기 */}
-        {widgetsConfig.favorites && (
-          <div className="card flex flex-col flex-1 min-h-[250px] p-4" style={{ overflow: 'hidden' }}>
-            <FavoritesWidget isWidget={true} />
-          </div>
-        )}
-
-        {/* 메모 보드 */}
-        {widgetsConfig.memo && (
-          <div className="card flex flex-col p-4 flex-1 min-h-[300px] relative overflow-hidden">
-            <div className="flex items-center justify-between mb-2 z-10 relative">
-              <h3 className="font-bold text-sm flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
-                <Pin size={14} className="text-orange-500" /> 메모 보드
-                <span className="text-[10px] font-normal ml-2 hidden sm:inline" style={{ color: 'var(--text-muted)' }}>빈 공간 더블 클릭: 추가</span>
-              </h3>
-              {memos.length > 0 && (
-                <button
-                  onClick={handleClearMemos}
-                  className="text-[11px] px-2 py-1 rounded transition-colors flex items-center gap-1"
-                  style={{ color: 'var(--text-secondary)', background: 'var(--bg-elevated)' }}
-                  title="모든 메모를 일괄 삭제합니다"
-                >
-                  <Trash2 size={12} /> 모두 지우기
-                </button>
-              )}
-            </div>
-            
-            <div
-              className="flex-1 relative w-full h-full memo-container"
-              onDoubleClick={(e) => {
-                // 메모 카드(absolute 위치 요소) 위를 클릭한 경우 무시
-                const target = e.target as HTMLElement
-                const isMemoCard = target.closest('.absolute')
-                if (isMemoCard) return
-                // 빈 공간 더블클릭 시에만 메모 추가
-                if (e.target === e.currentTarget) {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  handleAddMemo(e.clientX - rect.left, e.clientY - rect.top)
-                }
-              }}
-            >
-              {memos.map(memo => (
-                <StickyNote
-                  key={memo.id}
-                  memo={memo}
-                  onUpdate={handleUpdateMemo}
-                  onDelete={handleDeleteMemo}
-                  onFocus={handleFocusMemo}
-                />
-              ))}
+        {/* 4. 파일/폴더 즐겨찾기 */}
+        <div className="card flex flex-col p-4 min-h-[160px]" 
+          onDragOver={handleDragOver} 
+          onDrop={handleDrop}
+          style={{ border: isFavoritesEdit ? '2px dashed var(--accent-blue)' : '1px solid var(--border)' }}>
+          
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-sm flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+              <FolderHeart size={14} className="text-emerald-500" /> 즐겨찾기
+            </h3>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setIsFavoritesEdit(!isFavoritesEdit)}
+                className={`p-1.5 rounded-lg border transition-colors ${isFavoritesEdit ? 'border-blue-500 text-blue-500' : 'border-transparent text-muted'}`}
+                style={{ color: !isFavoritesEdit ? 'var(--text-muted)' : undefined, background: isFavoritesEdit ? 'rgba(59,130,246,0.1)' : 'transparent' }}>
+                {isFavoritesEdit ? <Check size={12} /> : <Edit2 size={12} />}
+              </button>
             </div>
           </div>
-        )}
 
-        {/* 주요 연락처 검색 (좌우 분할 배치) */}
-        {widgetsConfig.contacts && (
-          <div className="flex gap-3">
-            {/* 교직원 연락처 */}
-            <div className="card flex-1 flex flex-col p-3 shrink-0 relative" style={{ overflow: 'visible', zIndex: staffSearch ? 50 : 1 }}>
-              <div className="flex items-center gap-1 mb-2">
-                <span style={{ fontSize: '1.1em' }}>📞</span> 
-                <h3 className="font-bold text-xs" style={{ color: 'var(--text-primary)' }}>교직원 검색</h3>
-              </div>
-              
-              <div className="relative">
-                <input type="text" placeholder="이름" 
-                  className="w-full pl-7 pr-6 py-1 text-[11px] rounded-md border outline-none transition-colors focus:ring-1 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  value={staffSearch}
-                  onChange={(e) => setStaffSearch(e.target.value)}
-                />
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">🔍</span>
-                {staffSearch && (
-                  <button onClick={() => setStaffSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
-                    <XIcon size={10} />
-                  </button>
-                )}
-              </div>
+          {isFavoritesEdit && (
+            <div className="flex gap-2 mb-3">
+              <button onClick={() => handleAddFavoriteDialog('file')} className="flex-1 py-1.5 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors" style={{ color: 'var(--text-primary)', background: 'rgba(0,0,0,0.05)' }}>
+                <Plus size={10} /> 파일
+              </button>
+              <button onClick={() => handleAddFavoriteDialog('folder')} className="flex-1 py-1.5 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors" style={{ color: 'var(--text-primary)', background: 'rgba(0,0,0,0.05)' }}>
+                <Plus size={10} /> 폴더
+              </button>
+            </div>
+          )}
 
-              {staffSearch && (
-                <div className="absolute bottom-[calc(100%+8px)] left-0 w-[280px] z-[100] rounded-xl shadow-2xl border p-2 overflow-y-auto max-h-[300px]" 
-                     style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', backdropFilter: 'blur(10px)' }}>
-                  {(() => {
-                    const term = staffSearch.toLowerCase();
-                    const getChosung = (str: string) => {
-                      const chosung = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-                      let result = "";
-                      for(let i=0; i<str.length; i++) {
-                        const code = str.charCodeAt(i) - 44032;
-                        if(code > -1 && code < 11172) result += chosung[Math.floor(code / 588)];
-                        else result += str.charAt(i);
+          <div className="flex-1 overflow-y-auto pr-1" style={{ scrollbarWidth: 'none' }}>
+            {favorites.length === 0 && !isFavoritesEdit ? (
+              <div className="h-full flex flex-col items-center justify-center py-4 border border-dashed rounded-xl opacity-60" style={{ borderColor: 'var(--border)' }}>
+                <Folder size={20} className="mb-1" style={{ color: 'var(--text-muted)' }} />
+                <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>파일/폴더를 드롭하세요</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {favorites.map((fav) => (
+                  <div key={fav.id} onClick={() => handleOpenFavorite(fav.path)}
+                    className="relative group cursor-pointer flex flex-col items-center text-center p-2 rounded-xl transition-colors border"
+                    style={{ borderColor: 'rgba(0,0,0,0.05)', background: 'rgba(0,0,0,0.05)' }} title={fav.path}>
+                    <div className="w-10 h-10 flex items-center justify-center rounded-lg mb-1" 
+                      style={{ background: fav.type === 'folder' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)' }}>
+                      {fav.type === 'folder' 
+                        ? <Folder size={20} style={{ color: '#f59e0b' }} />
+                        : <File size={20} style={{ color: '#3b82f6' }} />
                       }
-                      return result;
-                    }
-                    const termChosung = getChosung(term);
-                    const matchString = (str?: string) => (str || '').toLowerCase().includes(term) || getChosung(str || '').includes(termChosung);
-
-                    const filtered = contacts.filter(c => c.type === 'staff' && (
-                      matchString(c.name) || matchString(c.phone) || matchString(c.mobile) || matchString(c.note)
-                    ));
-
-                    if (filtered.length === 0) {
-                      return <div className="py-4 text-center text-xs text-gray-500">검색 결과가 없습니다.</div>;
-                    }
-
-                    return filtered.map(c => (
-                      <div key={c.id} className="p-3 mb-1.5 last:mb-0 rounded-lg hover:bg-white/5 transition-colors cursor-default" style={{ border: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
-                        <div className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{c.name}</div>
-                        <div className="flex items-center gap-2 mt-1.5 text-xs">
-                          {c.department && <span style={{ color: 'var(--text-muted)' }}>{c.department}</span>}
-                          {c.phone && <span className="text-[11px] font-mono" style={{ color: 'var(--accent-blue)' }}>내선: {c.phone}</span>}
-                          {c.mobile && <span className="text-[11px] font-mono" style={{ color: 'var(--accent-mint)' }}>{c.mobile}</span>}
-                        </div>
-                      </div>
-                    ));
-                  })()}
-                </div>
-              )}
-            </div>
-
-            {/* 업체 연락처 */}
-            <div className="card flex-1 flex flex-col p-3 shrink-0 relative" style={{ overflow: 'visible', zIndex: companySearch ? 50 : 1 }}>
-              <div className="flex items-center gap-1 mb-2">
-                <span style={{ fontSize: '1.1em' }}>🏢</span> 
-                <h3 className="font-bold text-xs" style={{ color: 'var(--text-primary)' }}>업체 검색</h3>
-              </div>
-              
-              <div className="relative">
-                <input type="text" placeholder="상호/대표명" 
-                  className="w-full pl-7 pr-6 py-1 text-[11px] rounded-md border outline-none transition-colors focus:ring-1 focus:ring-blue-500"
-                  style={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                  value={companySearch}
-                  onChange={(e) => setCompanySearch(e.target.value)}
-                />
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">🔍</span>
-                {companySearch && (
-                  <button onClick={() => setCompanySearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white">
-                    <XIcon size={10} />
-                  </button>
-                )}
-              </div>
-
-            {companySearch && (
-              <div className="absolute bottom-[calc(100%+8px)] left-0 w-[280px] z-[100] rounded-xl shadow-2xl border p-2 overflow-y-auto max-h-[300px]" 
-                   style={{ background: 'var(--bg-card)', borderColor: 'var(--border)', backdropFilter: 'blur(10px)' }}>
-                {(() => {
-                  const term = companySearch.toLowerCase();
-                  const getChosung = (str: string) => {
-                    const chosung = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
-                    let result = "";
-                    for(let i=0; i<str.length; i++) {
-                      const code = str.charCodeAt(i) - 44032;
-                      if(code > -1 && code < 11172) result += chosung[Math.floor(code / 588)];
-                      else result += str.charAt(i);
-                    }
-                    return result;
-                  }
-                  const termChosung = getChosung(term);
-                  const matchString = (str?: string) => (str || '').toLowerCase().includes(term) || getChosung(str || '').includes(termChosung);
-
-                  const filtered = contacts.filter(c => c.type === 'company' && (
-                    matchString(c.name) || matchString(c.ceo_name) || matchString(c.phone) || matchString(c.mobile) || matchString(c.email) || matchString(c.note)
-                  ));
-
-                  if (filtered.length === 0) {
-                    return <div className="py-4 text-center text-xs text-gray-500">검색 결과가 없습니다.</div>;
-                  }
-
-                  return filtered.map(c => (
-                    <div key={c.id} className="p-3 mb-1.5 last:mb-0 rounded-lg hover:bg-white/5 transition-colors cursor-default" style={{ border: '1px solid var(--border)', background: 'var(--bg-elevated)' }}>
-                      <div className="font-bold text-sm flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                        {c.name}
-                        {c.ceo_name && <span className="text-[10px] font-normal" style={{ color: 'var(--text-muted)' }}>({c.ceo_name})</span>}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs">
-                        {c.phone && <span className="text-[11px] font-mono" style={{ color: 'var(--accent-blue)' }}>☎ {c.phone}</span>}
-                        {c.mobile && <span className="text-[11px] font-mono" style={{ color: 'var(--accent-mint)' }}>📱 {c.mobile}</span>}
-                      </div>
-                      {c.email && <div className="text-[10px] mt-1" style={{ color: 'var(--text-secondary)' }}>✉ {c.email}</div>}
                     </div>
-                  ));
-                })()}
+                    <p className="text-[10px] font-medium truncate w-full" style={{ color: 'var(--text-primary)' }}>{fav.name}</p>
+                    
+                    {isFavoritesEdit && (
+                      <button onClick={(e) => handleDeleteFavorite(fav.id, e)}
+                        className="absolute -top-1 -right-1 p-1 rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600 transition-colors z-10">
+                        <Trash2 size={10} />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
-         </div>
-        )}
+        </div>
+
       </div>
 
-
-      {/* 날씨 상세 모달 */}
+            {/* 날씨 상세 모달 */}
       {showWeatherModal && weather && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
@@ -1035,7 +752,7 @@ export default function Dashboard() {
                 
                 {/* 좌측: 현재 날씨 상세 */}
                 <div className="flex flex-col gap-4">
-                  <div className="rounded-2xl p-8 flex flex-col items-center justify-center border shadow-sm relative overflow-hidden" style={{ height: '70vh', background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+                  <div className="rounded-2xl p-8 flex flex-col items-center justify-center border shadow-sm relative overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
                     <div className="mx-auto scale-[2] transform origin-center mb-6">{weatherIcon(weather.icon)}</div>
                     <p className="text-6xl font-bold mb-2 tracking-tighter" style={{ color: 'var(--text-primary)' }}>{weather.temp}°C</p>
                     <p className="text-lg font-bold mb-4" style={{ color: 'var(--text-secondary)' }}>{weather.description}</p>

@@ -43,6 +43,7 @@ export interface API {
     batchRename: (folderPath: string, prefix: string, startNum: number) => Promise<{ success: boolean; results?: string[]; error?: string }>
     saveImage: (sourcePath: string, category: string) => Promise<{ success: boolean; path?: string; error?: string }>
     backupDb: () => Promise<{ success: boolean; path?: string; error?: string }>
+    restoreDb: () => Promise<{ success: boolean; path?: string; error?: string }>
     saveText: (content: string, filename: string) => Promise<{ success: boolean; path?: string; error?: string }>
     getUserDataPath: () => Promise<{ success: boolean; path: string }>
   }

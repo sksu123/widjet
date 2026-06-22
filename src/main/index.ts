@@ -68,6 +68,19 @@ app.whenReady().then(async () => {
 
   // 자동 업데이트
   if (!is.dev) {
+    autoUpdater.autoDownload = true
+    autoUpdater.autoInstallOnAppQuit = true
+
+    autoUpdater.on('update-available', (info) => {
+      mainWindow?.webContents.send('updater:update-available', info)
+    })
+    autoUpdater.on('update-not-available', () => {
+      mainWindow?.webContents.send('updater:update-not-available')
+    })
+    autoUpdater.on('error', (err) => {
+      mainWindow?.webContents.send('updater:error', err.message)
+    })
+
     autoUpdater.checkForUpdatesAndNotify()
   }
 
@@ -96,3 +109,16 @@ ipcMain.on('window-always-on-top', (_, flag: boolean) => {
   mainWindow?.setAlwaysOnTop(flag, 'floating')
 })
 ipcMain.handle('window-is-maximized', () => mainWindow?.isMaximized())
+
+// 수동 업데이트 확인
+ipcMain.handle('updater:check', async () => {
+  if (is.dev) {
+    return { success: false, error: '개발 환경에서는 업데이트를 확인할 수 없습니다.' }
+  }
+  try {
+    await autoUpdater.checkForUpdates()
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})

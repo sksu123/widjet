@@ -10,7 +10,7 @@ import CorporateCard from './pages/CorporateCard/CorporateCard'
 import Contacts from './pages/Contacts/Contacts'
 
 import Automation from './pages/Automation/Automation'
-import VoiceAssistant from './pages/VoiceAssistant/VoiceAssistant'
+import Favorites from './pages/Favorites/Favorites'
 import { useEffect } from 'react'
 import Settings from './pages/Settings/Settings'
 
@@ -20,11 +20,12 @@ export default function App() {
     window.api.db.getSettings().then((res) => {
       if (res.success) {
         const s = res.data as Record<string, string>
-        const theme = s.theme || 'dark'
+        const theme = s.theme || 'theme-light'
         const font = s.font || 'noto'
         const layout = s.layout || 'standard'
+        const fontSize = s.font_size || '3'
         
-        document.documentElement.className = `${theme} font-${font} layout-${layout}`
+        document.documentElement.className = `${theme} font-${font} layout-${layout} text-size-${fontSize}`
       }
     })
   }, [])
@@ -43,7 +44,7 @@ export default function App() {
           <Route path="contacts" element={<Contacts />} />
 
           <Route path="automation" element={<Automation />} />
-          <Route path="voice" element={<VoiceAssistant />} />
+          <Route path="favorites" element={<Favorites />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

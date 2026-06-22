@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Bot, BookOpen, Calculator, Calendar, FileText,
-  CreditCard, Package, Zap, Mic, Settings, ChevronRight, BookUser
+  CreditCard, Package, Zap, Settings, ChevronRight, BookUser, FolderHeart
 } from 'lucide-react'
 
 const navItems = [
@@ -15,7 +15,7 @@ const navItems = [
   { to: '/contacts', icon: BookUser, label: '주요 연락처', color: '#14b8a6' },
   { isExternal: true, href: 'https://sksu123-yeabi.vercel.app/', icon: Package, label: '여비정산신청서', color: '#f97316' },
   { to: '/automation', icon: Zap, label: '자동화 센터', color: '#06b6d4' },
-  { to: '/voice', icon: Mic, label: 'AI 음성비서', color: '#a78bfa' },
+  { to: '/favorites', icon: FolderHeart, label: '즐겨찾기', color: '#10b981' },
 ]
 
 export default function Sidebar() {
@@ -23,14 +23,14 @@ export default function Sidebar() {
     <aside
       className="w-56 flex-shrink-0 flex flex-col py-3 overflow-y-auto overflow-x-hidden"
       style={{
-        background: 'rgba(15,23,42,0.7)',
+        background: 'var(--bg-sidebar, var(--bg-secondary))',
         borderRight: '1px solid var(--border)',
         backdropFilter: 'blur(8px)'
       }}
     >
       {/* 네비게이션 */}
       <nav className="flex-1 px-2 space-y-0.5">
-        <p className="section-title px-2 mb-2 mt-1">메뉴</p>
+        <p className="section-title px-2 mb-2 mt-1" style={{ color: 'rgba(255,255,255,0.9)', letterSpacing: '0.08em' }}>메뉴</p>
         {navItems.map(({ to, isExternal, href, icon: Icon, label, color }) => {
           if (isExternal) {
             return (
@@ -39,9 +39,10 @@ export default function Sidebar() {
                 href={href}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative text-slate-400 hover:text-white hover:bg-white/5"
+                className="sidebar-nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative"
+                style={{ color: 'var(--text-sidebar-muted, var(--text-muted))' }}
               >
-                <Icon size={16} className="group-hover:text-white transition-colors" />
+                <Icon size={16} className="transition-colors" style={{ color: 'inherit' }} />
                 <span className="flex-1 truncate">{label}</span>
                 <span className="text-[10px] opacity-50 px-1 border border-slate-600 rounded">앱</span>
               </a>
@@ -53,22 +54,13 @@ export default function Sidebar() {
               key={to}
               to={to!}
               end={to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group relative ${
-                  isActive
-                    ? 'text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`
-              }
-              style={({ isActive }) =>
-                isActive
-                  ? {
-                      background: `linear-gradient(135deg, ${color}22, ${color}11)`,
-                      borderLeft: `2px solid ${color}`,
-                      paddingLeft: '10px'
-                    }
-                  : {}
-              }
+              className="sidebar-nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium group relative"
+              style={({ isActive }) => ({
+                color: isActive ? 'var(--text-sidebar, var(--text-primary))' : 'var(--text-sidebar-muted, var(--text-muted))',
+                background: isActive ? `linear-gradient(135deg, ${color}44, ${color}22)` : 'transparent',
+                borderLeft: isActive ? `2px solid ${color}` : '2px solid transparent',
+                paddingLeft: isActive ? '10px' : '12px'
+              })}
             >
               {({ isActive }) => (
                 <>
@@ -93,8 +85,8 @@ export default function Sidebar() {
         <NavLink
           to="/settings"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-              isActive ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            `sidebar-nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+              isActive ? 'bg-white/15 text-white font-semibold' : 'text-slate-200'
             }`
           }
         >
@@ -102,7 +94,7 @@ export default function Sidebar() {
           <span>환경설정</span>
         </NavLink>
         <div className="mt-4 px-3 text-center">
-          <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+          <p className="text-[10px] font-medium leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
             Developed by 신경수(담양남초)
             <br />
             © 2026. All Rights Reserved.
