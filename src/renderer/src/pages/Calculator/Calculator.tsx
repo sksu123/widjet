@@ -191,24 +191,90 @@ export default function CalculatorPage() {
     ])
   }
 
-  // ===== 4대보험 계산 =====
-  const [insurance, setInsurance] = useState({ salary: '3000000' })
-  const calcInsurance = () => {
-    const salary = parseInt(insurance.salary) || 0
-    const national = Math.floor(salary * 0.045)
-    const health = Math.floor(salary * 0.03545)
-    const elderly = Math.floor(health * 0.1295)
-    const employ = Math.floor(salary * 0.009)
-    const total = national + health + elderly + employ
+  // ===== 4대보험 & 퇴직금 시뮬레이터 =====
+  const [insurance, setInsurance] = useState({
+    salary: '2500000',
+    workerType: 'temp_teacher',
+    weekHours: '40',
+    contractStart: '',
+    contractEnd: '',
+    birthDate: '',
+  })
+  const [insuranceResult, setInsuranceResult] = useState<{
+    eligible: { pension: boolean; health: boolean; employ: boolean; accident: boolean };
+    personal: { pension: number; health: number; elderly: number; employ: number; total: number; net: number };
+    school: { pension: number; health: number; elderly: number; employ: number; accident: number; total: number };
+    retirement: { eligible: boolean; months: number; amount: number; reason: string };
+    warnings: string[];
+  } | null>(null)
 
-    setResult([
-      { label: '국민연금 (4.5%)', value: `${national.toLocaleString()}원` },
-      { label: '건강보험 (3.545%)', value: `${health.toLocaleString()}원` },
-      { label: '장기요양보험 (12.95%)', value: `${elderly.toLocaleString()}원` },
-      { label: '고용보험 (0.9%)', value: `${employ.toLocaleString()}원` },
-      { label: '4대보험 합계', value: `${total.toLocaleString()}원`, highlight: true },
-      { label: '실 지급액', value: `${(salary - total).toLocaleString()}원` },
-    ])
+  const calcInsurance = () => {
+    const salary = parseInt(insurance.salary.replace(/,/g, '')) || 0
+    const weekHrs = parseFloat(insurance.weekHours) || 0
+    const isShortTime = weekHrs < 15
+
+    let contractMonths = 0, contractDays = 0
+    if (insurance.contractStart && insurance.contractEnd) {
+      const s = new Date(insurance.contractStart)
+      const e = new Date(insurance.contractEnd)
+      contractDays = Math.floor((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1
+      contractMonths = contractDays / 30.4167
+    }
+
+    let age = 0
+    if (insurance.birthDate) {
+      const birth = new Date(insurance.birthDate)
+      const now = new Date()
+      age = now.getFullYear() - birth.getFullYear()
+      if (now.getMonth() < birth.getMonth() ||
+          (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--
+    }
+
+    // ※ 기간제 교원은 근로자 신분 → 고용·산재 의무 적용
+    const elig = {
+      pension:  !isShortTime && (age === 0 || (age >= 18 && age < 60)),
+      health:   !isShortTime,
+      employ:   !isShortTime,
+      accident: true,
+    }
+    // 주 15시간 미만 + 3개월(91일) 초과 계속근로 시 고용보험 적용
+    if (isShortTime && contractDays > 91) elig.employ = true
+
+    const pen  = elig.pension ? Math.floor(salary * 0.045) : 0
+    const hlth = elig.health  ? Math.floor(salary * 0.03545) : 0
+    const eld  = elig.health  ? Math.floor(hlth * 0.1295) : 0
+    const emp  = elig.employ  ? Math.floor(salary * 0.009) : 0
+    const pTotal = pen + hlth + eld + emp
+
+    const sAcc = Math.floor(salary * 0.0126)
+    const sTotal = pen + hlth + eld + emp + sAcc
+
+    const retEligible = contractDays >= 365 && !isShortTime
+    const retAmount   = retEligible ? Math.floor(salary * (contractMonths / 12)) : 0
+    let retReason = ''
+    if (retEligible)         retReason = `계속근로 ${Math.floor(contractMonths)}개월 (${contractDays}일) — 퇴직금 지급 대상`
+    else if (contractDays < 365) retReason = `계속근로 ${contractDays}일 — 1년 미만 퇴직금 미발생`
+    else                     retReason = `주 ${weekHrs}시간 (15시간 미만) — 단시간근로자 특례 검토 필요`
+
+    const warnings: string[] = []
+    if (isShortTime && contractDays <= 91)
+      warnings.push('⚠️ 주 15시간 미만 · 3개월 이하: 고용·국민연금·건강보험 모두 제외 (산재만 적용)')
+    if (isShortTime && contractDays > 91)
+      warnings.push('⚠️ 주 15시간 미만 + 3개월 초과 계속근로 → 고용보험 적용 (국민연금·건강보험 제외)')
+    if (age >= 60 && !isShortTime)
+      warnings.push(`⚠️ 만 ${age}세 — 국민연금 적용 제외 (60세 이상 당연적용 제외)`)
+    if (insurance.workerType === 'temp_teacher')
+      warnings.push('ℹ️ 기간제 교원은 근로기준법상 근로자 → 고용·산재보험 의무 적용 (공무원 신분 아님)')
+    if (retEligible)
+      warnings.push('✅ 퇴직금 지급 대상 — 계약 종료 시 지급 의무 발생')
+
+    setInsuranceResult({
+      eligible: elig,
+      personal: { pension: pen, health: hlth, elderly: eld, employ: emp, total: pTotal, net: salary - pTotal },
+      school:   { pension: pen, health: hlth, elderly: eld, employ: emp, accident: sAcc, total: sTotal },
+      retirement: { eligible: retEligible, months: Math.floor(contractMonths), amount: retAmount, reason: retReason },
+      warnings,
+    })
   }
 
   // ===== 스마트 원천세 계산기 =====
@@ -414,11 +480,54 @@ export default function CalculatorPage() {
           )}
 
           {activeCalc === 'vat' && (
-            <div><label className="label">합계 금액 (원)</label><input className="input" value={vatCalc.total} onChange={e => setVatCalc({ ...vatCalc, total: e.target.value })} type="number" /></div>
+            <div><label className="label">합계 금액 (원)</label><input className="input" type="text" value={vatCalc.total ? parseInt(vatCalc.total.toString().replace(/[^0-9]/g, ''), 10).toLocaleString() : ''} onChange={e => { const val = e.target.value.replace(/[^0-9]/g, ''); setVatCalc({ ...vatCalc, total: val }); }} /></div>
           )}
 
           {activeCalc === 'insurance' && (
-            <div><label className="label">월 급여 (원)</label><input className="input" value={insurance.salary} onChange={e => setInsurance({ salary: e.target.value })} type="number" /></div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label">직종 구분</label>
+                  <select className="input" value={insurance.workerType} onChange={e => { setInsurance({ ...insurance, workerType: e.target.value }); setInsuranceResult(null) }}>
+                    <option value="temp_teacher">기간제 교원</option>
+                    <option value="edu_staff">교육공무직 대체인력</option>
+                    <option value="instructor">방과후 강사</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">월 급여 (원)</label>
+                  <input className="input" type="text" placeholder="2,500,000"
+                      value={insurance.salary ? parseInt(insurance.salary.toString().replace(/[^0-9]/g, ''), 10).toLocaleString() : ''}
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setInsurance({ ...insurance, salary: val });
+                        setInsuranceResult(null);
+                      }} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label">주 소정근로시간</label>
+                  <input className="input" value={insurance.weekHours} onChange={e => { setInsurance({ ...insurance, weekHours: e.target.value }); setInsuranceResult(null) }} type="number" step="0.5" placeholder="40" />
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>15시간 미만 여부가 적용 기준</p>
+                </div>
+                <div>
+                  <label className="label">생년월일</label>
+                  <input className="input" type="date" max="9999-12-31" value={insurance.birthDate} onChange={e => { setInsurance({ ...insurance, birthDate: e.target.value }); setInsuranceResult(null) }} />
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>60세 이상 국민연금 제외</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label">계약 시작일</label>
+                  <input className="input" type="date" max="9999-12-31" value={insurance.contractStart} onChange={e => { setInsurance({ ...insurance, contractStart: e.target.value }); setInsuranceResult(null) }} />
+                </div>
+                <div>
+                  <label className="label">계약 종료일</label>
+                  <input className="input" type="date" max="9999-12-31" value={insurance.contractEnd} onChange={e => { setInsurance({ ...insurance, contractEnd: e.target.value }); setInsuranceResult(null) }} />
+                </div>
+              </div>
+            </div>
           )}
 
           {activeCalc === 'tax' && (
@@ -558,6 +667,113 @@ export default function CalculatorPage() {
           )}
         </div>
       </div>
+
+      {/* 4대보험 & 퇴직금 시뮬레이터 결과 패널 */}
+      {activeCalc === 'insurance' && insuranceResult && (
+        <div className="card mt-4 fade-in space-y-4 border-t-4 border-t-blue-500">
+          <h3 className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            🏥 4대보험 · 퇴직금 자동 시뮬레이터 결과
+          </h3>
+
+          <div>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>보험 적용 여부</p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { label: '국민연금', ok: insuranceResult.eligible.pension },
+                { label: '건강보험', ok: insuranceResult.eligible.health },
+                { label: '고용보험', ok: insuranceResult.eligible.employ },
+                { label: '산재보험', ok: insuranceResult.eligible.accident },
+              ] as { label: string; ok: boolean }[]).map(b => (
+                <span key={b.label} className={
+                  'px-3 py-1 rounded-full text-xs font-bold border ' +
+                  (b.ok
+                    ? 'bg-green-50 dark:bg-green-900/30 border-green-300 text-green-700 dark:text-green-300'
+                    : 'bg-red-50 dark:bg-red-900/30 border-red-300 text-red-600 dark:text-red-400')
+                }>
+                  {b.ok ? '✅' : '❌'} {b.label}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>보험료 상세 내역</p>
+            <table className="w-full text-xs" style={{ borderCollapse: 'collapse', border: '1px solid var(--border)' }}>
+              <thead>
+                <tr style={{ background: 'rgba(59,130,246,0.08)' }}>
+                  <th className="px-3 py-2 text-left font-bold" style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>항목</th>
+                  <th className="px-3 py-2 text-right font-bold" style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>개인 공제액</th>
+                  <th className="px-3 py-2 text-right font-bold" style={{ color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>학교 부담금</th>
+                </tr>
+              </thead>
+              <tbody>
+                {([
+                  { label: '국민연금', sub: '각 4.5%', p: insuranceResult.personal.pension, s: insuranceResult.school.pension },
+                  { label: '건강보험', sub: '각 3.545%', p: insuranceResult.personal.health, s: insuranceResult.school.health },
+                  { label: '장기요양보험', sub: '건강보험료×12.95%', p: insuranceResult.personal.elderly, s: insuranceResult.school.elderly },
+                  { label: '고용보험', sub: '각 0.9%', p: insuranceResult.personal.employ, s: insuranceResult.school.employ },
+                  { label: '산재보험', sub: '1.26% (전액학교)', p: 0, s: insuranceResult.school.accident },
+                ] as { label: string; sub: string; p: number; s: number }[]).map((row, i) => (
+                  <tr key={row.label} style={{ background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-elevated)' }}>
+                    <td className="px-3 py-2 font-medium" style={{ color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                      {row.label} <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>({row.sub})</span>
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono" style={{ color: row.p > 0 ? '#ef4444' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                      {row.p > 0 ? `-${row.p.toLocaleString()}원` : '–'}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono" style={{ color: row.s > 0 ? '#3b82f6' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                      {row.s > 0 ? `${row.s.toLocaleString()}원` : '–'}
+                    </td>
+                  </tr>
+                ))}
+                <tr style={{ background: 'rgba(59,130,246,0.05)' }}>
+                  <td className="px-3 py-2 font-bold" style={{ color: 'var(--text-primary)', border: '1px solid var(--border)' }}>합계</td>
+                  <td className="px-3 py-2 text-right font-bold font-mono" style={{ color: '#ef4444', border: '1px solid var(--border)' }}>-{insuranceResult.personal.total.toLocaleString()}원</td>
+                  <td className="px-3 py-2 text-right font-bold font-mono" style={{ color: '#3b82f6', border: '1px solid var(--border)' }}>{insuranceResult.school.total.toLocaleString()}원</td>
+                </tr>
+                <tr style={{ background: 'rgba(16,185,129,0.06)' }}>
+                  <td className="px-3 py-2 font-bold" style={{ color: '#10b981', border: '1px solid var(--border)' }}>실 지급액</td>
+                  <td className="px-3 py-2 text-right font-bold font-mono" colSpan={2} style={{ color: '#10b981', border: '1px solid var(--border)' }}>{insuranceResult.personal.net.toLocaleString()}원</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-3 rounded-lg border" style={{
+            borderColor: insuranceResult.retirement.eligible ? '#f59e0b' : 'var(--border)',
+            background: insuranceResult.retirement.eligible ? 'rgba(245,158,11,0.06)' : 'var(--bg-elevated)'
+          }}>
+            <p className="text-xs font-bold mb-1 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+              💰 퇴직금
+              <span className="ml-2 px-2 py-0.5 rounded-full text-[10px]" style={{
+                background: insuranceResult.retirement.eligible ? 'rgba(245,158,11,0.2)' : 'rgba(100,116,139,0.15)',
+                color: insuranceResult.retirement.eligible ? '#92400e' : 'var(--text-secondary)'
+              }}>
+                {insuranceResult.retirement.eligible ? '지급 대상' : '미해당'}
+              </span>
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{insuranceResult.retirement.reason}</p>
+            {insuranceResult.retirement.eligible && (
+              <p className="text-sm font-bold mt-1" style={{ color: '#d97706' }}>
+                예상 퇴직금: {insuranceResult.retirement.amount.toLocaleString()}원
+                <span className="text-[10px] ml-1" style={{ color: 'var(--text-muted)' }}>(월급여 × 근속월수/12 기준 추정)</span>
+              </p>
+            )}
+          </div>
+
+          {insuranceResult.warnings.length > 0 && (
+            <div className="space-y-1">
+              {insuranceResult.warnings.map((w, i) => (
+                <p key={i} className="text-[11px] px-3 py-1.5 rounded-lg" style={{ background: 'rgba(245,158,11,0.08)', color: 'var(--text-primary)' }}>{w}</p>
+              ))}
+            </div>
+          )}
+
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            ※ 2024년 적용 요율 기준. 실제 징수액은 근무일수·보수월액 산정 방식에 따라 차이가 있을 수 있으며 관할 기관 확인 필수.
+          </p>
+        </div>
+      )}
 
       {/* 스마트 원천세 누계대장 */}
       {activeCalc === 'tax' && taxLedger.length > 0 && (

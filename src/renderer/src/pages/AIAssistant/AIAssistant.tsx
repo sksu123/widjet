@@ -116,7 +116,7 @@ export default function AIAssistant() {
           </div>
           <div>
             <h1 className="page-title">AI 행정비서</h1>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Gemini 3.1 Flash-Lite 기반 학교 행정 전문 AI</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>행정 업무와 관련된 궁금한 점이나 초안 작성을 AI에게 요청하세요.</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

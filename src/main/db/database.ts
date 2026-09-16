@@ -2,6 +2,8 @@ import Database from 'better-sqlite3'
 import { app } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync } from 'fs'
+import { ADMIN_SCHEDULE_SEED_2026 } from './adminScheduleSeed'
+
 
 let db: Database.Database
 
@@ -202,6 +204,23 @@ function createTables(): void {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    -- 행정 달력 일정
+    CREATE TABLE IF NOT EXISTS admin_schedules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      category TEXT DEFAULT '행정',
+      date TEXT NOT NULL,
+      end_date TEXT,
+      is_deadline INTEGER DEFAULT 0,
+      is_recurring INTEGER DEFAULT 0,
+      memo TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      legal_basis TEXT DEFAULT '',
+      source TEXT DEFAULT 'custom',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `)
   
   // 마이그레이션
@@ -244,7 +263,8 @@ function seedInitialData(): void {
     ['school_name', '○○초등학교'],
     ['notifications_enabled', 'true'],
     ['backup_enabled', 'true'],
-    ['language', 'ko']
+    ['language', 'ko'],
+    ['gemini_model_preference', 'gemini-3.5-flash']
   ]
 
   const insertSetting = db.prepare(`
@@ -297,5 +317,20 @@ function seedInitialData(): void {
         ('일반경쟁입찰 공고', '계약', '입찰,공고,계약'),
         ('원천징수영수증', '회계', '원천세,영수증')
     `).run()
+  }
+
+  // 행정 달력 2026년 내장 데이터 seed (최초 1회)
+  const adminSchedCount = (db.prepare('SELECT COUNT(*) as cnt FROM admin_schedules').get() as { cnt: number }).cnt
+  if (adminSchedCount === 0) {
+    const insertAdminSched = db.prepare(`
+      INSERT INTO admin_schedules (title, category, date, is_deadline, description, legal_basis, source)
+      VALUES (?, ?, ?, ?, ?, ?, 'builtin')
+    `)
+    const insertMany = db.transaction(() => {
+      for (const s of ADMIN_SCHEDULE_SEED_2026) {
+        insertAdminSched.run(s.title, s.category, s.date, s.is_deadline, s.description, s.legal_basis)
+      }
+    })
+    insertMany()
   }
 }

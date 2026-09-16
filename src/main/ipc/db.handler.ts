@@ -51,8 +51,8 @@ export function registerDbHandlers(): void {
   ipcMain.handle('db:add-schedule', async (_, data: Record<string, unknown>) => {
     const db = getDb()
     const stmt = db.prepare(`
-      INSERT INTO schedules (title, description, start_date, end_date, category, color, is_all_day, reminder_minutes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO schedules (title, description, start_date, end_date, category, color, is_all_day, reminder_minutes, is_dday)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     let lastId = 0
@@ -82,12 +82,13 @@ export function registerDbHandlers(): void {
         const res = stmt.run(
           data.title, 
           data.description, 
-          currentStart.toISOString(), 
-          currentEnd ? currentEnd.toISOString() : null, 
+          currentStart.toISOString().slice(0, 10), 
+          currentEnd ? currentEnd.toISOString().slice(0, 10) : null, 
           data.category, 
           data.color, 
           data.is_all_day, 
-          data.reminder_minutes
+          data.reminder_minutes ?? 30,
+          data.is_dday ? 1 : 0
         )
         if (i === 0) lastId = res.lastInsertRowid as number
       }
@@ -99,9 +100,9 @@ export function registerDbHandlers(): void {
   ipcMain.handle('db:update-schedule', async (_, id: number, data: Record<string, unknown>) => {
     const db = getDb()
     db.prepare(`
-      UPDATE schedules SET title=?, description=?, start_date=?, end_date=?, category=?, color=?, is_all_day=?
+      UPDATE schedules SET title=?, description=?, start_date=?, end_date=?, category=?, color=?, is_all_day=?, is_dday=?
       WHERE id=?
-    `).run(data.title, data.description, data.start_date, data.end_date, data.category, data.color, data.is_all_day, id)
+    `).run(data.title, data.description, data.start_date, data.end_date, data.category, data.color, data.is_all_day, data.is_dday ? 1 : 0, id)
     return { success: true }
   })
 
@@ -439,4 +440,14 @@ export function registerDbHandlers(): void {
       return { success: false, error: e.message }
     }
   })
+  ipcMain.handle('db:clear-memos', async () => {
+    try {
+      const db = getDb()
+      db.prepare('DELETE FROM memos').run()
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, error: e.message }
+    }
+  })
+
 }

@@ -47,7 +47,7 @@ export function setupTray(mainWindow: BrowserWindow): void {
     }
   ])
 
-  tray.setToolTip('학교행정 AI 위젯')
+  tray.setToolTip('교행 보드')
   tray.setContextMenu(contextMenu)
 
   tray.on('double-click', () => {

@@ -1,311 +1,399 @@
-import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
-import { Calendar as CalIcon, Plus, Trash2, Edit2, ChevronLeft, ChevronRight } from 'lucide-react'
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addMonths, subMonths } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  ChevronLeft, ChevronRight, Plus, Printer, Download,
+  Search, X, LayoutGrid, List, CalendarDays, Copy
+} from 'lucide-react'
+import type { AdminSchedule } from '../../types/api'
+import MonthView from './MonthView'
+import ListView from './ListView'
+import YearView from './YearView'
+import ScheduleModal from './ScheduleModal'
 
-interface Schedule {
-  id: number; title: string; start_date: string; end_date?: string
-  category: string; color: string; is_all_day: number
-}
+type ViewMode = 'month' | 'list'
 
 const CATEGORIES = [
-  { value: 'general', label: '일반', color: '#3b82f6' },
-  { value: 'exam', label: '시험', color: '#ef4444' },
-  { value: 'meeting', label: '회의', color: '#8b5cf6' },
-  { value: 'event', label: '행사', color: '#f59e0b' },
-  { value: 'finance', label: '재무', color: '#10b981' },
-  { value: 'holiday', label: '휴무', color: '#06b6d4' },
+  { value: '전체',   color: '#6b7280' },
+  { value: '회계/예산', color: '#3b82f6' },
+  { value: '인사/노무', color: '#8b5cf6' },
+  { value: '시설/안전', color: '#f59e0b' },
+  { value: '급식/보건', color: '#10b981' },
+  { value: '행정',   color: '#ec4899' },
 ]
 
 export default function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', category: 'general', color: '#3b82f6', is_all_day: true, start_date: '', repeat_type: 'none' })
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [showSchoolScheduleInCalendar, setShowSchoolScheduleInCalendar] = useState(true)
-  const [schoolEvents, setSchoolEvents] = useState<{date: string; eventName: string; isHoliday: boolean}[]>([])
+  const now = new Date()
+  const [viewMode, setViewMode] = useState<ViewMode>('month')
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth() + 1)
+  const [schedules, setSchedules] = useState<AdminSchedule[]>([])
+  const [loading, setLoading] = useState(false)
 
-  const location = useLocation()
+  // 필터 상태
+  const [keyword, setKeyword] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('전체')
+
+  // 모달 상태
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState<AdminSchedule | null>(null)
+  const [defaultDate, setDefaultDate] = useState('')
+
+  // 연도 복사 확인 상태
+  const [showCopyConfirm, setShowCopyConfirm] = useState(false)
+  const [copyMsg, setCopyMsg] = useState('')
+
+  // 데이터 로드 (월간/목록 모두 해당 월만)
+  const loadSchedules = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await window.api.adminCal.get(year, month)
+      if (res.success) setSchedules(res.data as AdminSchedule[])
+    } finally {
+      setLoading(false)
+    }
+  }, [year, month])
 
   useEffect(() => {
     loadSchedules()
-    loadSchoolSchedule()
-  }, [currentDate])
+  }, [loadSchedules])
 
-  // 외부(대시보드 등)에서 날짜를 지정해 일정 추가 모달을 열도록 요청한 경우
-  useEffect(() => {
-    if (location.state?.addScheduleDate) {
-      const dateStr = location.state.addScheduleDate
-      const parsedDate = new Date(dateStr)
-      setForm(prev => ({ ...prev, start_date: dateStr }))
-      setSelectedDate(parsedDate)
-      setShowForm(true)
-      
-      // 현재 달력이 해당 날짜의 달을 보여주도록 이동
-      if (!isSameMonth(parsedDate, currentDate)) {
-        setCurrentDate(parsedDate)
-      }
-      
-      // 새로고침이나 뒤로가기 시 다시 열리는 것을 방지하기 위해 state 초기화
-      window.history.replaceState({}, document.title)
-    }
-  }, [location.state])
+  // 프론트엔드 필터 적용
+  const filteredSchedules = schedules.filter(s => {
+    if (selectedCategory !== '전체' && s.category !== selectedCategory) return false
+    if (keyword.trim() && !s.title.toLowerCase().includes(keyword.trim().toLowerCase())) return false
+    return true
+  })
 
-  async function loadSchedules() {
-    const res = await window.api.db.getSchedules(currentDate.getFullYear(), currentDate.getMonth() + 1)
-    if (res.success) setSchedules(res.data as Schedule[])
+  // 이전/다음 이동
+  const goPrev = () => {
+    if (month === 1) { setYear(y => y - 1); setMonth(12) }
+    else setMonth(m => m - 1)
+  }
+  const goNext = () => {
+    if (month === 12) { setYear(y => y + 1); setMonth(1) }
+    else setMonth(m => m + 1)
+  }
+  const goToday = () => {
+    setYear(now.getFullYear())
+    setMonth(now.getMonth() + 1)
   }
 
-  async function loadSchoolSchedule() {
-    if(!window.api.calendar.getSchoolSchedule) return;
-    const res = await window.api.calendar.getSchoolSchedule(currentDate.getFullYear(), currentDate.getMonth() + 1)
-    if (res.success) {
-      setSchoolEvents(res.data as {date: string; eventName: string; isHoliday: boolean}[])
-    }
+  const handleAddSchedule = (date = '') => {
+    setEditingSchedule(null)
+    setDefaultDate(date)
+    setModalOpen(true)
   }
 
-  const days = eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) })
-  const startPad = startOfMonth(currentDate).getDay()
+  const handleEditSchedule = (schedule: AdminSchedule) => {
+    setEditingSchedule(schedule)
+    setDefaultDate('')
+    setModalOpen(true)
+  }
 
-  const getSchedulesForDay = (day: Date) =>
-    schedules.filter(s => isSameDay(new Date(s.start_date), day))
-
-  const saveSchedule = async () => {
-    if (!form.title || !form.start_date) return
-    const cat = CATEGORIES.find(c => c.value === form.category)
-    const payload = {
-      ...form,
-      color: cat?.color || '#3b82f6',
-      is_all_day: form.is_all_day ? 1 : 0,
-    }
-    if (editingId) {
-      await window.api.db.updateSchedule(editingId, payload)
+  const handleSave = async (data: Record<string, unknown>) => {
+    if (editingSchedule) {
+      await window.api.adminCal.update(editingSchedule.id, data)
     } else {
-      await window.api.db.addSchedule(payload)
+      await window.api.adminCal.add(data)
     }
-    setShowForm(false)
-    setEditingId(null)
-    setForm({ title: '', category: 'general', color: '#3b82f6', is_all_day: true, start_date: '', repeat_type: 'none' })
+    setModalOpen(false)
     loadSchedules()
   }
 
-  const openEdit = (s: Schedule) => {
-    setEditingId(s.id)
-    setForm({
-      title: s.title,
-      category: s.category,
-      color: s.color,
-      is_all_day: s.is_all_day === 1,
-      start_date: s.start_date,
-      repeat_type: 'none'
-    })
-    setShowForm(true)
-  }
-
-  const deleteSchedule = async (id: number) => {
-    await window.api.db.deleteSchedule(id)
+  const handleDelete = async (id: number, similar?: boolean) => {
+    if (similar) {
+      await window.api.adminCal.deleteSimilar(id)
+    } else {
+      await window.api.adminCal.delete(id)
+    }
+    setModalOpen(false)
     loadSchedules()
   }
 
-  const selectedSchedules = selectedDate ? getSchedulesForDay(selectedDate) : []
-  const selectedSchoolEvents = selectedDate ? schoolEvents.filter(e => e.date === format(selectedDate, 'yyyyMMdd')) : []
+  // A4 인쇄 — 숨겨진 iframe을 사용해 인쇄 (Electron window.open 오류 방지)
+  const handlePrint = () => {
+    const printContent = document.getElementById('admin-cal-print-area')
+    if (!printContent) return
+    
+    // 이전 인쇄용 iframe이 있다면 제거
+    const oldIframe = document.getElementById('print-iframe') as HTMLIFrameElement
+    if (oldIframe) {
+      document.body.removeChild(oldIframe)
+    }
+
+    const iframe = document.createElement('iframe')
+    iframe.id = 'print-iframe'
+    iframe.style.position = 'absolute'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = 'none'
+    document.body.appendChild(iframe)
+
+    const doc = iframe.contentWindow?.document
+    if (!doc) return
+
+    doc.open()
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="ko">
+      <head>
+        <meta charset="UTF-8">
+        <title>행정 달력 인쇄</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 11px; color: #000; background: #fff; padding: 20px; }
+          h2 { font-size: 16px; font-weight: bold; margin-bottom: 12px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; vertical-align: top; }
+          th { background: #f5f5f5; font-weight: bold; text-align: center; }
+          .deadline { color: #dc2626; font-weight: bold; }
+          .print-only { display: block !important; }
+        </style>
+      </head>
+      <body>
+        ${printContent.innerHTML}
+      </body>
+      </html>
+    `)
+    doc.close()
+
+    iframe.contentWindow?.focus()
+    setTimeout(() => {
+      iframe.contentWindow?.print()
+    }, 500)
+  }
+
+  // CSV 다운로드
+  const handleCsvDownload = () => {
+    const data = viewMode === 'year' ? yearSchedules : filteredSchedules
+    const header = '날짜,카테고리,제목,마감일여부,메모\n'
+    const rows = data.map(s =>
+      `"${s.date}","${s.category}","${s.title.replace(/"/g, '""')}","${s.is_deadline ? '마감일' : '일반'}","${(s.memo || '').replace(/"/g, '""')}"`
+    ).join('\n')
+    const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `행정달력_${year}년${viewMode !== 'year' ? `_${month}월` : ''}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 연도 복사
+  const handleCopyYear = async () => {
+    const res = await window.api.adminCal.copyYear(year, year + 1)
+    if (res.success) {
+      setCopyMsg(`${year}년 일정 ${(res as any).count}개를 ${year + 1}년으로 복사했습니다.`)
+    } else {
+      setCopyMsg((res as any).message || '복사할 일정이 없습니다.')
+    }
+    setShowCopyConfirm(false)
+    loadSchedules()
+    setTimeout(() => setCopyMsg(''), 3000)
+  }
+
+  const titleLabel = `${year}년 ${month}월`
+
+  // 인쇄용 HTML 구성 (현재 보이는 일정 목록)
+  const printData = filteredSchedules
+  const printTitle = `행정 달력 - ${titleLabel}${selectedCategory !== '전체' ? ` [${selectedCategory}]` : ''}`
 
   return (
-    <div className="fade-in space-y-4">
-      <div className="flex items-center justify-between">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* ── 상단 툴바 ── */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 10,
+        padding: '12px 16px', borderBottom: '1px solid var(--border)',
+        flexShrink: 0, flexWrap: 'wrap',
+      }}>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
-            <CalIcon size={16} className="text-white" />
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+            <CalendarDays size={16} className="text-white" />
           </div>
-          <h1 className="page-title">일정 관리</h1>
+          <div>
+            <h1 className="page-title">행정 달력</h1>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>학교 행정실 5대 핵심 업무(회계/예산, 인사/노무, 시설/안전, 급식/보건, 행정) 일정을 체계적으로 관리합니다.</p>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-2 py-1 rounded-lg border" style={{ background: 'rgba(0,0,0,0.03)', borderColor: 'var(--border)' }}>
-            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>학사일정 표시</span>
-            <button 
-              onClick={() => setShowSchoolScheduleInCalendar(!showSchoolScheduleInCalendar)}
-              className={`w-8 h-4 rounded-full transition-colors relative ${showSchoolScheduleInCalendar ? 'bg-blue-500' : 'bg-slate-300'}`}
-            >
-              <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${showSchoolScheduleInCalendar ? 'left-4' : 'left-0.5'}`} />
-            </button>
-          </div>
-          <button onClick={() => { setEditingId(null); setForm({ title: '', category: 'general', color: '#3b82f6', is_all_day: true, start_date: '', repeat_type: 'none' }); setShowForm(true) }} className="btn-primary text-xs">
-            <Plus size={14} /> 일정 추가
-          </button>
-        </div>
-      </div>
+        
+        <div style={{ flex: 1 }} />
 
-      <div className="grid grid-cols-3 gap-4">
-        {/* 캘린더 */}
-        <div className="col-span-2 card">
-          {/* 월 이동 */}
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="btn-ghost p-1.5">
-              <ChevronLeft size={16} />
-            </button>
-            <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-              {format(currentDate, 'yyyy년 M월', { locale: ko })}
-            </p>
-            <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="btn-ghost p-1.5">
-              <ChevronRight size={16} />
-            </button>
-          </div>
-
-          {/* 요일 헤더 */}
-          <div className="grid grid-cols-7 mb-1">
-            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-              <div key={d} className="text-center text-xs py-1 font-medium"
-                style={{ color: i === 0 ? '#ef4444' : i === 6 ? '#60a5fa' : 'var(--text-muted)' }}>
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* 날짜 그리드 */}
-          <div className="grid grid-cols-7 gap-0.5">
-            {Array.from({ length: startPad }).map((_, i) => (
-              <div key={`pad-${i}`} className="h-14" />
-            ))}
-            {days.map(day => {
-              const daySchedules = getSchedulesForDay(day)
-              const dateString = format(day, 'yyyyMMdd')
-              const daySchoolEvents = schoolEvents.filter(e => e.date === dateString)
-              const isSelected = selectedDate && isSameDay(day, selectedDate)
-              const today = isToday(day)
-              return (
+        {/* 우측 상단 컨트롤 */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* 뷰 전환 */}
+            <div style={{ display: 'flex', background: 'var(--bg-secondary)', borderRadius: 8, padding: 2, gap: 2 }}>
+              {([['month', '월간', LayoutGrid], ['list', '목록', List]] as const).map(([mode, label, Icon]) => (
                 <button
-                  key={day.toISOString()}
-                  onClick={() => setSelectedDate(day)}
-                  className="h-14 flex flex-col items-center pt-1 rounded-lg transition-all hover:bg-white/5 relative"
-                  style={isSelected ? { background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)' } : {}}
+                  key={mode}
+                  onClick={() => setViewMode(mode as ViewMode)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                    background: viewMode === mode ? 'var(--bg-card)' : 'transparent',
+                    color: viewMode === mode ? 'var(--text-primary)' : 'var(--text-muted)',
+                    boxShadow: viewMode === mode ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                    transition: 'all 0.15s',
+                  }}
                 >
-                  <span className={`text-xs w-5 h-5 flex items-center justify-center rounded-full font-medium ${today ? 'text-white' : ''}`}
-                    style={today ? { background: '#3b82f6' } :
-                      { color: day.getDay() === 0 ? '#ef4444' : day.getDay() === 6 ? '#60a5fa' : 'var(--text-secondary)' }}>
-                    {format(day, 'd')}
-                  </span>
-                  <div className="flex gap-0.5 mt-0.5">
-                    {daySchedules.slice(0, 3).map(s => (
-                      <div key={s.id} className="w-1 h-1 rounded-full" style={{ background: s.color }} />
-                    ))}
-                    {showSchoolScheduleInCalendar && daySchoolEvents.slice(0, 3 - Math.min(3, daySchedules.length)).map((ev, i) => (
-                      <div key={`sc-${i}`} className="w-1 h-1 rounded-full" style={{ background: ev.isHoliday ? '#ef4444' : '#94a3b8' }} />
-                    ))}
-                  </div>
-                  {(daySchedules.length > 0 || (showSchoolScheduleInCalendar && daySchoolEvents.length > 0)) && (
-                    <div className="absolute bottom-0.5 w-full px-1 flex flex-col gap-px" style={{ marginBottom: '1px' }}>
-                      {daySchedules.slice(0, 1).map(s => (
-                        <div key={s.id} className="truncate text-[9px] px-1 py-0 rounded" style={{ background: `${s.color}33`, color: s.color }}>
-                          <span className="font-bold opacity-80 mr-1">({CATEGORIES.find(c => c.value === s.category)?.label || '일반'})</span>
-                          {s.title}
-                        </div>
-                      ))}
-                      {showSchoolScheduleInCalendar && daySchoolEvents.slice(0, daySchedules.length > 0 ? 0 : 1).map((ev, i) => (
-                        <div key={`scl-${i}`} className="truncate text-[9px] px-1 py-0 rounded"
-                          style={{ background: ev.isHoliday ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)', color: ev.isHoliday ? '#ef4444' : 'var(--text-muted)' }}>
-                          {ev.eventName}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <Icon size={13} />{label}
                 </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* 선택된 날짜 일정 */}
-        <div className="card">
-          <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-            {selectedDate ? format(selectedDate, 'M월 d일 일정', { locale: ko }) : '날짜를 선택하세요'}
-          </p>
-          {selectedSchedules.length === 0 && (!showSchoolScheduleInCalendar || selectedSchoolEvents.length === 0) ? (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {selectedDate ? '등록된 일정이 없습니다' : '캘린더에서 날짜를 클릭하세요'}
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {selectedSchedules.map(s => (
-                <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg group cursor-pointer transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                  style={{ background: `${s.color}11`, border: `1px solid ${s.color}33` }}
-                  onClick={() => openEdit(s)}>
-                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.color }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                      <span className="font-bold opacity-80 mr-1" style={{ color: s.color }}>
-                        ({CATEGORIES.find(c => c.value === s.category)?.label || '일반'})
-                      </span>
-                      {s.title}
-                    </p>
-                  </div>
-                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => openEdit(s)} title="수정"
-                      className="p-1.5 rounded-md hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition-colors">
-                      <Edit2 size={12} />
-                    </button>
-                    <button onClick={() => deleteSchedule(s.id)} title="삭제"
-                      className="p-1.5 rounded-md hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors">
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {showSchoolScheduleInCalendar && selectedSchoolEvents.map((ev, i) => (
-                <div key={`sc-list-${i}`} className="flex items-start gap-2 p-2 rounded-lg group"
-                  style={{ background: ev.isHoliday ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)' }}>
-                  <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: ev.isHoliday ? '#ef4444' : '#94a3b8' }} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: ev.isHoliday ? '#ef4444' : 'var(--text-primary)' }}>
-                      {ev.eventName}
-                    </p>
-                  </div>
-                </div>
               ))}
             </div>
-          )}
+
+            {/* 년월 이동 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={goPrev} style={navBtnStyle}><ChevronLeft size={16} /></button>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', minWidth: 90, textAlign: 'center' }}>{titleLabel}</span>
+              <button onClick={goNext} style={navBtnStyle}><ChevronRight size={16} /></button>
+              <button onClick={goToday} style={{ ...navBtnStyle, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>오늘</button>
+            </div>
+          </div>
+
+          {/* 액션 버튼들 */}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button onClick={() => handleAddSchedule()} style={actionBtnStyle}><Plus size={14} /> 일정 추가</button>
+            <button onClick={handlePrint} style={iconBtnStyle} title="인쇄"><Printer size={15} /></button>
+            <button onClick={handleCsvDownload} style={iconBtnStyle} title="CSV 다운로드"><Download size={15} /></button>
+            <button onClick={() => setShowCopyConfirm(true)} style={iconBtnStyle} title={`${year}년 → ${year + 1}년 복사`}><Copy size={15} /></button>
+          </div>
         </div>
       </div>
 
-      {/* 일정 추가 모달 */}
-      {showForm && (
-        <div className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-          <div className="card w-80 space-y-3" style={{ background: 'var(--bg-secondary)' }}>
-            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{editingId ? '일정 수정' : '새 일정 추가'}</p>
-            <div>
-              <label className="label">제목</label>
-              <input className="input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="일정 제목" />
-            </div>
-            <div>
-              <label className="label">날짜</label>
-              <input className="input" type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">분류</label>
-              <select className="input" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">반복 설정</label>
-              <select className="input" value={form.repeat_type} onChange={e => setForm({ ...form, repeat_type: e.target.value })}>
-                <option value="none">반복 없음</option>
-                <option value="daily">매일 (1년)</option>
-                <option value="weekly">매주 (1년)</option>
-                <option value="monthly">매월 (1년)</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={saveSchedule} className="btn-primary flex-1 justify-center text-sm">저장</button>
-              <button onClick={() => { setShowForm(false); setEditingId(null) }} className="btn-ghost flex-1 justify-center text-sm">취소</button>
+      {/* ── 필터 바 ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 16px', borderBottom: '1px solid var(--border)',
+        flexShrink: 0, flexWrap: 'wrap', background: 'var(--bg-secondary)',
+      }}>
+        {/* 카테고리 필터 */}
+        {CATEGORIES.map(cat => (
+          <button
+            key={cat.value}
+            onClick={() => setSelectedCategory(cat.value)}
+            style={{
+              padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+              border: `1.5px solid ${selectedCategory === cat.value ? cat.color : 'var(--border)'}`,
+              background: selectedCategory === cat.value ? cat.color : 'var(--bg-card)',
+              color: selectedCategory === cat.value ? '#fff' : cat.color,
+            }}
+          >
+            {cat.value}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        {viewMode === 'list' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px' }}>
+            <Search size={13} style={{ color: 'var(--text-muted)' }} />
+            <input
+              value={keyword}
+              onChange={e => setKeyword(e.target.value)}
+              placeholder="일정 검색..."
+              style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 12, color: 'var(--text-primary)', width: 140 }}
+            />
+            {keyword && (
+              <button onClick={() => setKeyword('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex' }}>
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── 알림 ── */}
+      {copyMsg && (
+        <div style={{ padding: '8px 16px', background: '#10b98122', borderBottom: '1px solid #10b98144', fontSize: 12, color: '#10b981', fontWeight: 600 }}>
+          ✓ {copyMsg}
+        </div>
+      )}
+
+      {/* ── 연도 복사 확인 모달 ── */}
+      {showCopyConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: 28, maxWidth: 380, width: '90vw', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <Copy size={32} style={{ color: '#f59e0b', marginBottom: 12 }} />
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px' }}>일정 복사</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 20px', lineHeight: 1.6 }}>
+              {year}년 일정을 {year + 1}년으로 복사합니다.<br />
+              주말에 해당하는 일정 중 시설/안전은 금요일로, 나머지는 월요일로 자동 조정됩니다.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleCopyYear} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: 'none', background: '#f59e0b', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>복사</button>
+              <button onClick={() => setShowCopyConfirm(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>취소</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── 메인 콘텐츠 ── */}
+      <div id="admin-cal-print-area" style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
+        {/* 인쇄용 숨김 헤더 */}
+        <div className="print-only" style={{ display: 'none' }}>
+          <h2>{printTitle}</h2>
+          <table>
+            <thead>
+              <tr><th>날짜</th><th>카테고리</th><th>제목</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+              {printData.map(s => (
+                <tr key={s.id}>
+                  <td>{s.date}</td>
+                  <td>{s.category}</td>
+                  <td className={s.is_deadline === 1 ? 'deadline' : ''}>{s.is_deadline === 1 ? '⚑ ' : ''}{s.title}</td>
+                  <td>{s.memo || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 14 }}>불러오는 중...</div>
+        ) : viewMode === 'month' ? (
+          <MonthView
+            schedules={filteredSchedules}
+            year={year}
+            month={month}
+            onAddSchedule={handleAddSchedule}
+            onEditSchedule={handleEditSchedule}
+          />
+        ) : (
+          <ListView
+            schedules={filteredSchedules}
+            onEdit={handleEditSchedule}
+            onDelete={handleDelete}
+          />
+        )}
+      </div>
+
+      {/* ── 일정 추가/수정 모달 ── */}
+      <ScheduleModal
+        isOpen={modalOpen}
+        schedule={editingSchedule}
+        defaultDate={defaultDate}
+        onSave={handleSave}
+        onDelete={handleDelete}
+        onClose={() => setModalOpen(false)}
+      />
     </div>
   )
+}
+
+const navBtnStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 8,
+  background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer',
+}
+
+const actionBtnStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 5,
+  padding: '6px 12px', border: 'none', borderRadius: 8,
+  background: '#f59e0b', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+}
+
+const iconBtnStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 8,
+  background: 'var(--bg-card)', color: 'var(--text-secondary)', cursor: 'pointer',
 }

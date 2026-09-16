@@ -1,5 +1,32 @@
 // Window API 타입 선언
+
+export interface AdminSchedule {
+  id: number
+  title: string
+  category: string
+  date: string         // YYYY-MM-DD
+  end_date: string | null
+  is_deadline: number  // 0 or 1
+  is_recurring: number // 0 or 1
+  memo: string
+  description: string
+  legal_basis: string
+  source: string       // 'builtin' | 'custom'
+  created_at: string
+  updated_at: string
+}
+
 export interface API {
+  ruleAi: {
+    uploadDocument: (filePath: string) => Promise<any>
+    getDocuments: () => Promise<any>
+    toggleDocument: (id: number, isActive: boolean) => Promise<any>
+    deleteDocument: (id: number) => Promise<any>
+    getPageContent: (documentId: number, pageNumber: number) => Promise<any>
+    getChats: () => Promise<any>
+    getMessages: (chatId: number) => Promise<any>
+    askQuestion: (chatId: number | null, question: string) => Promise<any>
+  }
   window: {
     minimize: () => void
     maximize: () => void
@@ -8,11 +35,14 @@ export interface API {
     isMaximized: () => Promise<boolean>
   }
   ai: {
+    getAvailableModels: () => Promise<{ success: boolean; data: string[]; error?: string }>
     chat: (messages: Array<{ role: string; content: string }>, category?: string) => Promise<{ success: boolean; text: string; error?: string }>
     recommendBudget: (data: { projectName: string; item: string; amount: number }) => Promise<{ success: boolean; text: string; error?: string }>
     draftDocument: (data: { type: string; context: string }) => Promise<{ success: boolean; text: string; error?: string }>
     processVoice: (text: string) => Promise<{ success: boolean; text: string; error?: string }>
+    proofreadDocument: (text: string) => Promise<{ success: boolean; text: string; error?: string }>
     getHistory: (limit?: number) => Promise<{ success: boolean; data: unknown[]; error?: string }>
+    parseSchedule?: (text: string) => Promise<{ success: boolean; data: any }>
   }
   db: {
     getSettings: () => Promise<{ success: boolean; data: Record<string, string> }>
@@ -52,6 +82,17 @@ export interface API {
     getToday: () => Promise<{ success: boolean; data: unknown[]; error?: string }>
     getMonth: (year: number, month: number) => Promise<{ success: boolean; data: unknown[]; error?: string }>
     getDday: () => Promise<{ success: boolean; data: unknown[]; error?: string }>
+    getSchoolSchedule?: (year: number, month: number) => Promise<{ success: boolean; data: { date: string; eventName: string; isHoliday: boolean }[] }>
+  }
+  adminCal: {
+    get: (year: number, month: number) => Promise<{ success: boolean; data: AdminSchedule[] }>
+    getYear: (year: number) => Promise<{ success: boolean; data: AdminSchedule[] }>
+    getAll: (year: number, keyword?: string, category?: string) => Promise<{ success: boolean; data: AdminSchedule[] }>
+    add: (data: Record<string, unknown>) => Promise<{ success: boolean; id: number }>
+    update: (id: number, data: Record<string, unknown>) => Promise<{ success: boolean }>
+    delete: (id: number) => Promise<{ success: boolean }>
+    deleteSimilar: (id: number) => Promise<{ success: boolean; count: number }>
+    copyYear: (fromYear: number, toYear: number) => Promise<{ success: boolean; count: number; message?: string }>
   }
 }
 

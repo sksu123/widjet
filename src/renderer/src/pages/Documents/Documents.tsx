@@ -3,12 +3,12 @@ import { FileText, Search, Copy, Download, Star } from 'lucide-react'
 
 interface Document { id: number; title: string; category: string; tags: string; use_count: number }
 
-const CATEGORIES = ['전체', '회계', '출장', '물품', '계약', '회의', '보고서']
+const CATEGORIES = ['회계', '출장', '물품', '계약', '회의', '보고서']
 
 export default function Documents() {
   const [docs, setDocs] = useState<Document[]>([])
   const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('전체')
+  const [activeCategory, setActiveCategory] = useState('회계')
   const [generating, setGenerating] = useState<number | null>(null)
   const [draftResult, setDraftResult] = useState<{ id: number; text: string } | null>(null)
   const [docInputs, setDocInputs] = useState<Record<number, string>>({})
@@ -20,7 +20,7 @@ export default function Documents() {
   useEffect(() => { loadDocs() }, [activeCategory])
 
   async function loadDocs() {
-    const cat = activeCategory === '전체' ? undefined : activeCategory
+    const cat = activeCategory
     const res = await window.api.db.getDocuments(cat)
     if (res.success) setDocs(res.data as Document[])
   }
@@ -59,10 +59,13 @@ export default function Documents() {
             <FileText size={16} className="text-white" />
           </div>
           <h1 className="page-title">공문 및 문서 관리</h1>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>보관할 공문서와 주요 문서들을 효율적으로 관리하세요.</p>
         </div>
-        <button onClick={() => setShowFastReport(true)} className="btn-primary text-xs">
+        {activeCategory === '보고서' && (
+<button onClick={() => setShowFastReport(true)} className="btn-primary text-xs">
           + 간편 보고서 작성
         </button>
+)}
       </div>
 
       {/* 검색 */}

@@ -8,11 +8,12 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [backupDone, setBackupDone] = useState(false)
   const [restoreMsg, setRestoreMsg] = useState('')
-  const [activeTab, setActiveTab] = useState<'general' | 'api' | 'weather' | 'user' | 'data' | 'school'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'api' | 'weather' | 'user' | 'data' | 'school' | 'version'>('general')
   const [autoStart, setAutoStart] = useState(false)
   // 업데이트 상태: 'idle' | 'checking' | 'latest' | 'available' | 'error'
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available' | 'error'>('idle')
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available' | 'error' | 'downloaded'>('idle')
   const [updateInfo, setUpdateInfo] = useState<string>('')
+  const [appVersion, setAppVersion] = useState('v2.0.53')
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -21,7 +22,14 @@ export default function Settings() {
   // 날씨 지역 변경 상태
   const [showRegionSelector, setShowRegionSelector] = useState(false)
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { 
+    loadData()
+    if ((window.api as any).system && (window.api as any).system.getVersion) {
+      (window.api as any).system.getVersion().then((res: any) => {
+        if(res && res.version) setAppVersion('v' + res.version)
+      })
+    }
+  }, [])
 
   async function loadData() {
     const [settingsRes, userRes, autoStartRes] = await Promise.all([
@@ -119,6 +127,7 @@ export default function Settings() {
     { key: 'weather', label: '날씨 설정', icon: Cloud },
     { key: 'user', label: '사용자', icon: User },
     { key: 'data', label: '데이터', icon: Database },
+    { key: 'version', label: '버전 업데이트', icon: RefreshCw },
   ] as const
 
   return (
@@ -271,60 +280,6 @@ export default function Settings() {
             </div>
           </div>
           
-          <div className="divider" />
-
-          {/* ===== 업데이트 ===== */}
-          <div>
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="label">업데이트</label>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {updateStatus === 'idle' && '업데이트 확인 버튼을 눌러 최신 버전을 확인하세요.'}
-                  {updateStatus === 'checking' && '⏳ 업데이트를 확인 중입니다...'}
-                  {updateStatus === 'latest' && '✓ 최신 버전을 사용 중입니다.'}
-                  {updateStatus === 'available' && `🔔 새 버전이 있습니다! ${updateInfo} - 자동 다운로드 중...앱실행 시 설치됩니다.`}
-                  {updateStatus === 'error' && `❌ 확인 실패: ${updateInfo}`}
-                </p>
-              </div>
-              <button
-                onClick={async () => {
-                  setUpdateStatus('checking')
-                  setUpdateInfo('')
-                  // 이벤트 리스너 등록 (중복 방지를 위해 한 번만)
-                  if ((window.api as any).updater) {
-                    ;(window.api as any).updater.onUpdateAvailable((info: any) => {
-                      setUpdateStatus('available')
-                      setUpdateInfo(info.version || '')
-                    })
-                    ;(window.api as any).updater.onUpdateNotAvailable(() => {
-                      setUpdateStatus('latest')
-                    })
-                    ;(window.api as any).updater.onError((err: string) => {
-                      setUpdateStatus('error')
-                      setUpdateInfo(err)
-                    })
-                    await (window.api as any).updater.checkForUpdates()
-                  } else {
-                    setUpdateStatus('error')
-                    setUpdateInfo('업데이트 기능을 사용할 수 없습니다.')
-                  }
-                }}
-                disabled={updateStatus === 'checking'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  background: updateStatus === 'checking' ? 'rgba(100,116,139,0.1)' : 'rgba(59,130,246,0.1)',
-                  color: updateStatus === 'checking' ? 'var(--text-muted)' : '#60a5fa',
-                  border: '1px solid',
-                  borderColor: updateStatus === 'checking' ? 'rgba(100,116,139,0.2)' : 'rgba(59,130,246,0.2)',
-                  opacity: updateStatus === 'checking' ? 0.7 : 1,
-                  cursor: updateStatus === 'checking' ? 'not-allowed' : 'pointer'
-                }}
-              >
-                <RefreshCw size={12} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
-                업데이트 확인
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
@@ -508,11 +463,6 @@ export default function Settings() {
             )}
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-            <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>버전 정보</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>학교행정 AI 위젯 v1.0.1</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Electron + React + Gemini AI</p>
-          </div>
         </div>
       )}
 
@@ -566,6 +516,75 @@ export default function Settings() {
               <option value="60">1시간</option>
               <option value="120">2시간</option>
             </select>
+          </div>
+        </div>
+      {activeTab === 'version' && (
+        <div className="card space-y-5">
+          {/* ===== 버전 정보 ===== */}
+          <div>
+            <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>버전 정보</h3>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>교행 보드 {appVersion}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Electron + React + Gemini AI</p>
+          </div>
+
+          <div className="divider" />
+
+          {/* ===== 업데이트 확인 ===== */}
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="label">업데이트</label>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  {updateStatus === 'idle' && '업데이트 확인 버튼을 눌러 최신 버전을 확인하세요.'}
+                  {updateStatus === 'checking' && '⏳ 업데이트를 확인 중입니다...'}
+                  {updateStatus === 'latest' && '✓ 최신 버전을 사용 중입니다.'}
+                  {updateStatus === 'available' && `🔔 새 버전이 있습니다! ${updateInfo} - 자동 다운로드 중...`}
+                  {updateStatus === 'downloaded' && `✅ 버전 ${updateInfo} 준비됨 - 잠시 후 팝업창을 확인하세요.`}
+                  {updateStatus === 'error' && `❌ 확인 실패: ${updateInfo}`}
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  setUpdateStatus('checking')
+                  setUpdateInfo('')
+                  // 이벤트 리스너 등록 (중복 방지를 위해 한 번만)
+                  if ((window.api as any).updater) {
+                    ;(window.api as any).updater.onUpdateAvailable((info: any) => {
+                      setUpdateStatus('available')
+                      setUpdateInfo(info.version || '')
+                    })
+                    ;(window.api as any).updater.onUpdateNotAvailable(() => {
+                      setUpdateStatus('latest')
+                    })
+                    ;(window.api as any).updater.onError((err: string) => {
+                      setUpdateStatus('error')
+                      setUpdateInfo(err)
+                    })
+                    ;(window.api as any).updater.onUpdateDownloaded((info: any) => {
+                      setUpdateStatus('downloaded')
+                      setUpdateInfo(info.version || '')
+                    })
+                    await (window.api as any).updater.checkForUpdates()
+                  } else {
+                    setUpdateStatus('error')
+                    setUpdateInfo('업데이트 기능을 사용할 수 없습니다.')
+                  }
+                }}
+                disabled={updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded'}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'rgba(100,116,139,0.1)' : 'rgba(59,130,246,0.1)',
+                  color: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'var(--text-muted)' : '#60a5fa',
+                  border: '1px solid',
+                  borderColor: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'rgba(100,116,139,0.2)' : 'rgba(59,130,246,0.2)',
+                  opacity: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 0.7 : 1,
+                  cursor: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <RefreshCw size={12} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
+                업데이트 확인
+              </button>
+            </div>
           </div>
         </div>
       )}

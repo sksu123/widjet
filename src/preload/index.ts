@@ -2,6 +2,31 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 // 타입 안전한 IPC 브릿지
 const api = {
+  ruleAi: {
+    uploadDocument: (filePath: string) => ipcRenderer.invoke('ruleAi:uploadDocument', filePath),
+    getDocuments: () => ipcRenderer.invoke('ruleAi:getDocuments'),
+    toggleDocument: (id: number, isActive: boolean) => ipcRenderer.invoke('ruleAi:toggleDocument', id, isActive),
+    deleteDocument: (id: number) => ipcRenderer.invoke('ruleAi:deleteDocument', id),
+    getPageContent: (documentId: number, pageNumber: number) => ipcRenderer.invoke('ruleAi:getPageContent', documentId, pageNumber),
+    getChats: () => ipcRenderer.invoke('ruleAi:getChats'),
+    getMessages: (chatId: number) => ipcRenderer.invoke('ruleAi:getMessages', chatId),
+    deleteChat: (id: number) => ipcRenderer.invoke('ruleAi:deleteChat', id),
+    deleteAllChats: () => ipcRenderer.invoke('ruleAi:deleteAllChats'),
+    askQuestion: (chatId: number | null, question: string) => ipcRenderer.invoke('ruleAi:askQuestion', chatId, question)
+  },
+
+  // 행정 달력
+  adminCal: {
+    get: (year: number, month: number) => ipcRenderer.invoke('admin-cal:get', year, month),
+    getYear: (year: number) => ipcRenderer.invoke('admin-cal:get-year', year),
+    getAll: (year: number, keyword?: string, category?: string) => ipcRenderer.invoke('admin-cal:get-all', year, keyword, category),
+    add: (data: Record<string, unknown>) => ipcRenderer.invoke('admin-cal:add', data),
+    update: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('admin-cal:update', id, data),
+    delete: (id: number) => ipcRenderer.invoke('admin-cal:delete', id),
+    deleteSimilar: (id: number) => ipcRenderer.invoke('admin-cal:delete-similar', id),
+    copyYear: (fromYear: number, toYear: number) => ipcRenderer.invoke('admin-cal:copy-year', fromYear, toYear)
+  },
+
   // 윈도우 컨트롤
   window: {
     minimize: () => ipcRenderer.send('window-minimize'),
@@ -13,6 +38,7 @@ const api = {
 
   // AI
   ai: {
+    getAvailableModels: () => ipcRenderer.invoke('ai:get-available-models'),
     chat: (messages: Array<{ role: string; content: string }>, category?: string) =>
       ipcRenderer.invoke('ai:chat', messages, category),
     recommendBudget: (data: { projectName: string; item: string; amount: number }) =>
@@ -21,10 +47,13 @@ const api = {
       ipcRenderer.invoke('ai:draft-document', data),
     processVoice: (text: string) =>
       ipcRenderer.invoke('ai:process-voice', text),
+    proofreadDocument: (text: string, includeTable?: boolean) => ipcRenderer.invoke('ai:proofread-document', text, includeTable),
     getHistory: (limit?: number) =>
       ipcRenderer.invoke('ai:get-history', limit),
     weatherSummary: (weatherData: any) =>
-      ipcRenderer.invoke('ai:weather-summary', weatherData)
+      ipcRenderer.invoke('ai:weather-summary', weatherData),
+    parseSchedule: (text: string) =>
+      ipcRenderer.invoke('ai:parse-schedule', text)
   },
 
   // 데이터베이스
@@ -65,11 +94,14 @@ const api = {
     addContactsBulk: (data: Record<string, unknown>[]) => ipcRenderer.invoke('db:add-contacts-bulk', data),
     updateContact: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('db:update-contact', id, data),
     deleteContact: (id: number) => ipcRenderer.invoke('db:delete-contact', id),
+    syncContactsBulk: (data: { updates: Record<string, unknown>[], deletes: number[] }) => ipcRenderer.invoke('db:sync-contacts-bulk', data),
+    toggleContactFavorite: (id: number, is_favorite: boolean) => ipcRenderer.invoke('db:toggle-contact-favorite', id, is_favorite),
 
     getMemos: () => ipcRenderer.invoke('db:get-memos'),
     addMemo: (data: Record<string, unknown>) => ipcRenderer.invoke('db:add-memo', data),
     updateMemo: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('db:update-memo', id, data),
-    deleteMemo: (id: number) => ipcRenderer.invoke('db:delete-memo', id)
+    deleteMemo: (id: number) => ipcRenderer.invoke('db:delete-memo', id),
+    clearMemos: () => ipcRenderer.invoke('db:clear-memos')
   },
 
   // 파일
@@ -105,7 +137,17 @@ const api = {
   // 시스템 (자동 실행 등)
   system: {
     setLoginItem: (openAtLogin: boolean) => ipcRenderer.invoke('system:set-login-item', openAtLogin),
-    getLoginItem: () => ipcRenderer.invoke('system:get-login-item')
+    getLoginItem: () => ipcRenderer.invoke('system:get-login-item'),
+    getVersion: () => ipcRenderer.invoke('system:get-version'),
+    readClipboard: () => ipcRenderer.invoke('system:read-clipboard'),
+    writeClipboard: (text: string) => ipcRenderer.invoke('system:write-clipboard', text),
+    getClipboardHistory: () => ipcRenderer.invoke('system:get-clipboard-history'),
+    clearClipboardHistory: () => ipcRenderer.invoke('system:clear-clipboard-history'),
+    registerSnippets: (snippets: string[]) => ipcRenderer.invoke('system:register-snippets', snippets),
+    onShowNotification: (callback: (data: any) => void) => {
+      ipcRenderer.removeAllListeners('system:show-notification')
+      ipcRenderer.on('system:show-notification', (_, data) => callback(data))
+    }
   },
 
   // 업데이트
@@ -119,6 +161,14 @@ const api = {
     },
     onError: (callback: (err: string) => void) => {
       ipcRenderer.on('updater:error', (_, err) => callback(err))
+    },
+    downloadUpdate: () => ipcRenderer.invoke('updater:download'),
+    quitAndInstall: () => ipcRenderer.invoke('updater:install'),
+    onDownloadProgress: (callback: (progress: any) => void) => {
+      ipcRenderer.on('updater:download-progress', (_, progressObj) => callback(progressObj))
+    },
+    onUpdateDownloaded: (callback: (info: any) => void) => {
+      ipcRenderer.on('updater:update-downloaded', (_, info) => callback(info))
     }
   }
 }

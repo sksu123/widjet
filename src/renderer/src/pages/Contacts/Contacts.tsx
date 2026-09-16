@@ -309,10 +309,14 @@ export default function Contacts() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/20 text-blue-400">
-              <BookUser size={16} />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+              <BookUser size={16} className="text-white" />
             </div>
-            <h1 className="page-title">연락처</h1>
+            <div>
+              <h1 className="page-title">교직원/업체 연락처</h1>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>교내 교직원 내선 번호와 외부 업체 연락처를 빠르게 검색하고 관리합니다.</p>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">

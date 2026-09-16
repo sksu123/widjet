@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from '../Sidebar/Sidebar'
 import TitleBar from '../TitleBar/TitleBar'
+import DailyRoutinePopup from '../DailyRoutinePopup/DailyRoutinePopup'
 
 export default function Layout() {
   return (
@@ -19,6 +20,8 @@ export default function Layout() {
           </div>
         </main>
       </div>
+
+      <DailyRoutinePopup />
     </div>
   )
 }

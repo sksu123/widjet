@@ -1,12 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-@import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Do+Hyeon&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -23,7 +15,7 @@
 html, body, #root {
   height: 100%;
   overflow: hidden;
-  font-family: 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif;
+  font-family: 'Pretendard', 'Malgun Gothic', system-ui, sans-serif !important;
   user-select: none;
 }
 
@@ -33,37 +25,22 @@ input, textarea, [contenteditable="true"] {
   -webkit-user-select: auto;
 }
 
-html.font-pretendard, html.font-pretendard body {
-  font-family: 'Pretendard', 'Malgun Gothic', system-ui, sans-serif !important;
-}
 
-html.font-nanum, html.font-nanum body {
-  font-family: 'Nanum Gothic', 'Malgun Gothic', system-ui, sans-serif !important;
-}
 
-html.font-myeongjo, html.font-myeongjo body {
-  font-family: 'Nanum Myeongjo', 'Batang', Georgia, serif !important;
-}
 
-html.font-blackhan, html.font-blackhan body {
-  font-family: 'Black Han Sans', 'Malgun Gothic', system-ui, sans-serif !important;
-}
 
-html.font-dohyeon, html.font-dohyeon body {
-  font-family: 'Do Hyeon', 'Malgun Gothic', system-ui, sans-serif !important;
-}
 
-html.font-gowun, html.font-gowun body {
-  font-family: 'Gowun Dodum', 'Malgun Gothic', system-ui, sans-serif !important;
-}
 
-html.font-jua, html.font-jua body {
-  font-family: 'Jua', 'Malgun Gothic', system-ui, sans-serif !important;
-}
 
-html.font-gamja, html.font-gamja body {
-  font-family: 'Gamja Flower', 'Malgun Gothic', system-ui, sans-serif !important;
-}
+
+
+
+
+
+
+
+
+
 
 /* ===== 스크롤바 스타일 ===== */
 ::-webkit-scrollbar {
@@ -98,11 +75,11 @@ html.theme-light {
   --bg-sidebar: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
   --bg-titlebar: #ffffff;
   --bg-card: #ffffff;
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
   --text-sidebar: #ffffff;
-  --text-sidebar-muted: rgba(255, 255, 255, 0.7);
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(15, 23, 42, 0.1);
   --accent-blue: #2563eb;
   --accent-mint: #059669;
@@ -126,11 +103,11 @@ html.theme-dark {
   --bg-sidebar: rgba(15,23,42,0.95);
   --bg-titlebar: #1e293b;
   --bg-card: #1e293b;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-sidebar: #f8fafc;
-  --text-sidebar-muted: #cbd5e1;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(248, 250, 252, 0.1);
   --accent-blue: #3b82f6;
   --accent-mint: #10b981;
@@ -154,11 +131,11 @@ html.theme-ocean {
   --bg-sidebar: #075985;
   --bg-titlebar: #0c4a6e;
   --bg-card: #0c4a6e;
-  --text-primary: #f0f9ff;
-  --text-secondary: #bae6fd;
-  --text-muted: #7dd3fc;
-  --text-sidebar: #f0f9ff;
-  --text-sidebar-muted: #bae6fd;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(240, 249, 255, 0.15);
   --accent-blue: #38bdf8;
   --accent-mint: #2dd4bf;
@@ -182,11 +159,11 @@ html.theme-forest {
   --bg-sidebar: #047857;
   --bg-titlebar: #065f46;
   --bg-card: #065f46;
-  --text-primary: #ecfdf5;
-  --text-secondary: #a7f3d0;
-  --text-muted: #6ee7b7;
-  --text-sidebar: #ecfdf5;
-  --text-sidebar-muted: #a7f3d0;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(236, 253, 245, 0.15);
   --accent-blue: #60a5fa;
   --accent-mint: #34d399;
@@ -210,11 +187,11 @@ html.theme-sunset {
   --bg-sidebar: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
   --bg-titlebar: #ffedd5;
   --bg-card: #ffffff;
-  --text-primary: #431407;
-  --text-secondary: #7c2d12;
-  --text-muted: #9a3412;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
   --text-sidebar: #ffffff;
-  --text-sidebar-muted: #ffedd5;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(67, 20, 7, 0.1);
   --accent-blue: #0284c7;
   --accent-mint: #0d9488;
@@ -238,11 +215,11 @@ html.theme-lavender {
   --bg-sidebar: linear-gradient(180deg, #9333ea 0%, #7e22ce 100%);
   --bg-titlebar: #f3e8ff;
   --bg-card: #ffffff;
-  --text-primary: #3b0764;
-  --text-secondary: #581c87;
-  --text-muted: #7e22ce;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
   --text-sidebar: #ffffff;
-  --text-sidebar-muted: #f3e8ff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(59, 7, 100, 0.1);
   --accent-blue: #2563eb;
   --accent-mint: #059669;
@@ -266,11 +243,11 @@ html.theme-monochrome {
   --bg-sidebar: #09090b;
   --bg-titlebar: #27272a;
   --bg-card: #27272a;
-  --text-primary: #fafafa;
-  --text-secondary: #d4d4d8;
-  --text-muted: #a1a1aa;
-  --text-sidebar: #fafafa;
-  --text-sidebar-muted: #d4d4d8;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(250, 250, 250, 0.15);
   --accent-blue: #fafafa;
   --accent-mint: #e4e4e7;
@@ -294,11 +271,11 @@ html.theme-retro {
   --bg-sidebar: #b45309;
   --bg-titlebar: #fde68a;
   --bg-card: #ffffff;
-  --text-primary: #451a03;
-  --text-secondary: #78350f;
-  --text-muted: #92400e;
-  --text-sidebar: #fef3c7;
-  --text-sidebar-muted: #fde68a;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(69, 26, 3, 0.15);
   --accent-blue: #0369a1;
   --accent-mint: #0f766e;
@@ -322,11 +299,11 @@ html.theme-neon {
   --bg-sidebar: #000000;
   --bg-titlebar: #0f172a;
   --bg-card: #0f172a;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #64748b;
-  --text-sidebar: #f8fafc;
-  --text-sidebar-muted: #cbd5e1;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: #334155;
   --accent-blue: #0ea5e9;
   --accent-mint: #14b8a6;
@@ -350,11 +327,11 @@ html.theme-mint {
   --bg-sidebar: linear-gradient(180deg, #0d9488 0%, #0f766e 100%);
   --bg-titlebar: #ccfbf1;
   --bg-card: #ffffff;
-  --text-primary: #134e4a;
-  --text-secondary: #115e59;
-  --text-muted: #0f766e;
-  --text-sidebar: #f0fdfa;
-  --text-sidebar-muted: #ccfbf1;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(19, 78, 74, 0.1);
   --accent-blue: #0284c7;
   --accent-mint: #0d9488;
@@ -378,11 +355,11 @@ html.theme-rose {
   --bg-sidebar: linear-gradient(180deg, #e11d48 0%, #be123c 100%);
   --bg-titlebar: #ffe4e6;
   --bg-card: #ffffff;
-  --text-primary: #881337;
-  --text-secondary: #9f1239;
-  --text-muted: #be123c;
-  --text-sidebar: #fff1f2;
-  --text-sidebar-muted: #ffe4e6;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(136, 19, 55, 0.1);
   --accent-blue: #2563eb;
   --accent-mint: #059669;
@@ -406,11 +383,11 @@ html.theme-sky {
   --bg-sidebar: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
   --bg-titlebar: #e0f2fe;
   --bg-card: #ffffff;
-  --text-primary: #082f49;
-  --text-secondary: #0c4a6e;
-  --text-muted: #075985;
-  --text-sidebar: #f0f9ff;
-  --text-sidebar-muted: #e0f2fe;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(8, 47, 73, 0.1);
   --accent-blue: #0284c7;
   --accent-mint: #0d9488;
@@ -434,11 +411,11 @@ html.theme-peach {
   --bg-sidebar: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
   --bg-titlebar: #fee2e2;
   --bg-card: #ffffff;
-  --text-primary: #450a0a;
-  --text-secondary: #7f1d1d;
-  --text-muted: #991b1b;
-  --text-sidebar: #fef2f2;
-  --text-sidebar-muted: #fee2e2;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(69, 10, 10, 0.1);
   --accent-blue: #2563eb;
   --accent-mint: #059669;
@@ -462,11 +439,11 @@ html.theme-slate {
   --bg-sidebar: #334155;
   --bg-titlebar: #f1f5f9;
   --bg-card: #ffffff;
-  --text-primary: #0f172a;
+  --text-primary: #000000;
   --text-secondary: #1e293b;
-  --text-muted: #475569;
-  --text-sidebar: #f8fafc;
-  --text-sidebar-muted: #e2e8f0;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(15, 23, 42, 0.15);
   --accent-blue: #3b82f6;
   --accent-mint: #10b981;
@@ -490,11 +467,11 @@ html.theme-coffee {
   --bg-sidebar: #57534e;
   --bg-titlebar: #e7e5e4;
   --bg-card: #ffffff;
-  --text-primary: #1c1917;
-  --text-secondary: #292524;
-  --text-muted: #44403c;
-  --text-sidebar: #f5f5f4;
-  --text-sidebar-muted: #d6d3d1;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(28, 25, 23, 0.15);
   --accent-blue: #0284c7;
   --accent-mint: #0d9488;
@@ -518,11 +495,11 @@ html.theme-cherry {
   --bg-sidebar: linear-gradient(180deg, #db2777 0%, #be185d 100%);
   --bg-titlebar: #fbcfe8;
   --bg-card: #ffffff;
-  --text-primary: #831843;
-  --text-secondary: #9d174d;
-  --text-muted: #be185d;
-  --text-sidebar: #fdf2f8;
-  --text-sidebar-muted: #fbcfe8;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(131, 24, 67, 0.1);
   --accent-blue: #2563eb;
   --accent-mint: #059669;
@@ -546,11 +523,11 @@ html.theme-navy {
   --bg-sidebar: #020617;
   --bg-titlebar: #0f172a;
   --bg-card: #1e293b;
-  --text-primary: #f8fafc;
-  --text-secondary: #e2e8f0;
-  --text-muted: #94a3b8;
-  --text-sidebar: #f8fafc;
-  --text-sidebar-muted: #e2e8f0;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(248, 250, 252, 0.1);
   --accent-blue: #3b82f6;
   --accent-mint: #10b981;
@@ -574,11 +551,11 @@ html.theme-sand {
   --bg-sidebar: #8b7355;
   --bg-titlebar: #f5efe6;
   --bg-card: #ffffff;
-  --text-primary: #3e3222;
-  --text-secondary: #5c4b33;
-  --text-muted: #8b7355;
-  --text-sidebar: #fbf8f1;
-  --text-sidebar-muted: #e8dfca;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(62, 50, 34, 0.15);
   --accent-blue: #0284c7;
   --accent-mint: #0d9488;
@@ -602,11 +579,11 @@ html.theme-grape {
   --bg-sidebar: #1f020f;
   --bg-titlebar: #4a0428;
   --bg-card: #4a0428;
-  --text-primary: #fce7f3;
-  --text-secondary: #fbcfe8;
-  --text-muted: #f472b6;
-  --text-sidebar: #fce7f3;
-  --text-sidebar-muted: #fbcfe8;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: rgba(252, 231, 243, 0.15);
   --accent-blue: #38bdf8;
   --accent-mint: #2dd4bf;
@@ -630,11 +607,11 @@ html.theme-cyber {
   --bg-sidebar: #050505;
   --bg-titlebar: #121212;
   --bg-card: #121212;
-  --text-primary: #00ff41;
-  --text-secondary: #008f11;
-  --text-muted: #003b00;
-  --text-sidebar: #00ff41;
-  --text-sidebar-muted: #008f11;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
   --border: #008f11;
   --accent-blue: #0ff;
   --accent-mint: #00ff41;
@@ -903,3 +880,153 @@ html.theme-cyber {
 /* 글로우 효과 */
 .glow-blue { box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); }
 .glow-mint { box-shadow: 0 0 20px rgba(20, 184, 166, 0.2); }
+
+/* 22. 노션 뉴트럴 */
+html.theme-notion {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F7F6F3;
+  --bg-tertiary: #E9D8A6;
+  --bg-sidebar: #F7F6F3;
+  --bg-titlebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #000000;
+  --text-sidebar-muted: #1e293b;
+  --border: rgba(55, 53, 47, 0.09);
+  --accent-blue: #337EA9;
+  --accent-mint: #0f7b6c;
+  --accent-purple: #6940a5;
+  --accent-orange: #d9730d;
+  --accent-red: #e03e3e;
+  --accent-green: #0f7b6c;
+}
+
+/* 23. 은은한 더스티 파스텔 */
+html.theme-dusty {
+  --bg-primary: #FAF7F5;
+  --bg-secondary: #F1E6E2;
+  --bg-tertiary: #e5d5d0;
+  --bg-sidebar: #F1E6E2;
+  --bg-titlebar: #FAF7F5;
+  --bg-card: #FAF7F5;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #000000;
+  --text-sidebar-muted: #1e293b;
+  --border: rgba(74, 64, 58, 0.1);
+  --accent-blue: #B08279;
+  --accent-mint: #9CAF97;
+  --accent-purple: #867484;
+  --accent-orange: #c38c6c;
+  --accent-red: #c96f6f;
+  --accent-green: #9CAF97;
+}
+
+/* 24. 리니어 다크 미니멀 */
+html.theme-linear {
+  --bg-primary: #0B0B0E;
+  --bg-secondary: #151519;
+  --bg-tertiary: #1f1f25;
+  --bg-sidebar: #151519;
+  --bg-titlebar: #0B0B0E;
+  --bg-card: #151519;
+  --text-primary: #ffffff;
+  --text-secondary: #f8fafc;
+  --text-muted: #e2e8f0;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent-blue: #5E6AD2;
+  --accent-mint: #4C9AFF;
+  --accent-purple: #9c6cff;
+  --accent-orange: #f28c28;
+  --accent-red: #f45d5d;
+  --accent-green: #4ade80;
+}
+
+/* 25. 스트라이프 인디고 */
+html.theme-stripe {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F6F9FC;
+  --bg-tertiary: #e9eff5;
+  --bg-sidebar: #0A2540;
+  --bg-titlebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #ffffff;
+  --text-sidebar-muted: #f8fafc;
+  --border: rgba(10, 37, 64, 0.1);
+  --accent-blue: #635BFF;
+  --accent-mint: #00D4FF;
+  --accent-purple: #7950f2;
+  --accent-orange: #f5b041;
+  --accent-red: #f44336;
+  --accent-green: #2ecc71;
+}
+
+/* 26. 듀오링고 비비드 */
+html.theme-duolingo {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F7F7F5;
+  --bg-tertiary: #ececd9;
+  --bg-sidebar: #F7F7F5;
+  --bg-titlebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --text-primary: #000000;
+  --text-secondary: #1e293b;
+  --text-muted: #334155;
+  --text-sidebar: #000000;
+  --text-sidebar-muted: #1e293b;
+  --border: rgba(60, 60, 60, 0.15);
+  --accent-blue: #58CC02; /* 듀오링고는 초록이 메인 */
+  --accent-mint: #1CB0F6;
+  --accent-purple: #ce82ff;
+  --accent-orange: #ff9600;
+  --accent-red: #ff4b4b;
+  --accent-green: #58CC02;
+}
+
+
+/* ===== 강제 테마 호환성 오버라이드 (가독성 보장) ===== */
+/* 앱 내에 하드코딩된 bg-white, bg-slate 계열 클래스들을 현재 테마의 CSS 변수로 강제 매핑합니다. */
+.bg-white, .bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-slate-300, .bg-gray-50, .bg-gray-100, .bg-gray-200 {
+  background-color: var(--bg-card) !important;
+}
+
+.text-slate-900, .text-slate-800, .text-slate-700, .text-gray-900, .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+.text-slate-600, .text-slate-500, .text-slate-400, .text-gray-600, .text-gray-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* 폼 요소 및 버튼 내부의 하드코딩 텍스트 무력화 */
+input, textarea, select {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-secondary) !important;
+}
+
+.card {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+/* 다크모드 캘린더/날짜 선택기 네이티브 다크 테마 적용 */
+html.dark input[type="date"],
+html.dark input[type="time"],
+html.dark input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+.sidebar-nav-item {
+  color: var(--text-sidebar-muted, inherit) !important;
+}
+.sidebar-nav-item.active {
+  color: var(--text-sidebar) !important;
+}

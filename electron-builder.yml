@@ -1,6 +1,6 @@
 appId: com.schooladmin.widget
-productName: 학교행정 AI 위젯
-copyright: Copyright © 2026 신경수(담양남초)
+productName: 교행보드
+copyright: Copyright © 2026 신경수
 
 directories:
   buildResources: resources
@@ -30,8 +30,8 @@ win:
 
 nsis:
   artifactName: SchoolAdminWidget-${version}-Setup.${ext}
-  shortcutName: 학교행정 AI 위젯
-  uninstallDisplayName: 학교행정 AI 위젯
+  shortcutName: 교행보드
+  uninstallDisplayName: 교행보드
   createDesktopShortcut: always
   createStartMenuShortcut: true
   oneClick: false

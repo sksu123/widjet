@@ -12,7 +12,8 @@ export default function CorporateCardPage() {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null)
   const [borrowForm, setBorrowForm] = useState({ borrower_name: '', borrower_dept: '', purpose: '', due_date: '' })
   const [showBorrow, setShowBorrow] = useState(false)
-  const [history, setHistory] = useState<unknown[]>([])
+  const [history, setHistory] = useState<any[]>([])
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   
   const [manageForm, setManageForm] = useState({ id: 0, card_name: '', card_number: '' })
@@ -52,10 +53,14 @@ export default function CorporateCardPage() {
   }
 
   async function handleDeleteCard(id: number) {
-    if (confirm('정말로 이 법인카드를 삭제하시겠습니까? (관련 이력도 함께 삭제될 수 있습니다)')) {
-      await window.api.db.deleteCard(id)
-      loadCards()
-    }
+    setDeleteConfirmId(id)
+  }
+
+  async function executeDeleteCard() {
+    if (deleteConfirmId === null) return
+    await window.api.db.deleteCard(deleteConfirmId)
+    setDeleteConfirmId(null)
+    loadCards()
   }
 
   async function loadHistory() {
@@ -78,7 +83,10 @@ export default function CorporateCardPage() {
             style={{ background: 'linear-gradient(135deg, #ec4899, #db2777)' }}>
             <CreditCard size={16} className="text-white" />
           </div>
-          <h1 className="page-title">법인카드 관리</h1>
+          <div>
+            <h1 className="page-title">법인카드 관리</h1>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>법인카드 대여 기록과 반납 현황을 체계적으로 관리합니다.</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button onClick={() => { setManageForm({ id: 0, card_name: '', card_number: '' }); setShowManage(true) }} className="btn-primary text-xs">
@@ -290,6 +298,23 @@ export default function CorporateCardPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 법인카드 삭제 확인 모달 */}
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200"
+          onClick={() => setDeleteConfirmId(null)}>
+          <div className="card w-full max-w-sm p-6 overflow-hidden shadow-2xl flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>법인카드 삭제</h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              정말로 이 법인카드를 삭제하시겠습니까? (관련 이력도 함께 삭제될 수 있습니다)
+            </p>
+            <div className="flex justify-end gap-2 mt-2">
+              <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" style={{ color: 'var(--text-secondary)' }}>취소</button>
+              <button onClick={executeDeleteCard} className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors shadow-sm">삭제</button>
+            </div>
           </div>
         </div>
       )}

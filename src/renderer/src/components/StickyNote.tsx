@@ -79,7 +79,22 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
   const initialPos = useRef({ x: 0, y: 0 })
   const initialSize = useRef({ w: 0, h: 0 })
   const contentRef = useRef<HTMLDivElement>(null)
+  const initialContent = useRef(memo.content)
   const saveTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  // 외부 변경 동기화 로직 (현재 포커스되어 있지 않을 때만)
+  useEffect(() => {
+    if (!isFocused && memo.title !== title) {
+      setTitle(memo.title)
+    }
+  }, [memo.title, isFocused])
+
+  useEffect(() => {
+    if (!isFocused && contentRef.current && memo.content !== contentRef.current.innerHTML) {
+      contentRef.current.innerHTML = memo.content
+      setContent(memo.content)
+    }
+  }, [memo.content, isFocused])
 
   const debouncedUpdate = (data: Partial<MemoData>) => {
     if (saveTimeout.current) clearTimeout(saveTimeout.current)
@@ -126,8 +141,8 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
       } else if (isResizing) {
         const dx = e.clientX - dragStartPos.current.x
         const dy = e.clientY - dragStartPos.current.y
-        const newW = Math.max(200, initialSize.current.w + dx)
-        const newH = Math.max(200, initialSize.current.h + dy)
+        const newW = Math.max(150, initialSize.current.w + dx)
+        const newH = Math.max(100, initialSize.current.h + dy)
         setSize({ w: newW, h: newH })
       }
     }
@@ -257,8 +272,8 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
                 </button>
                 {showFontSize && (
                   <div
-                    className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
-                    style={{ zIndex: 99999, minWidth: '110px' }}
+                    className="absolute top-full left-0 mt-1 rounded-lg shadow-xl border overflow-hidden"
+                    style={{ zIndex: 99999, minWidth: '110px', background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
                     onMouseDown={e => e.stopPropagation()}
                   >
                     {FONT_SIZES.map(s => (
@@ -269,8 +284,7 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
                           execCmd('fontSize', s.value)
                           setShowFontSize(false)
                         }}
-                        className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors"
-                        style={{ color: '#374151' }}
+                        className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-black/10 dark:hover:bg-white/10 transition-colors" style={{ color: 'var(--text-primary)' }}
                       >
                         <span>{s.label}</span>
                         <span
@@ -302,11 +316,11 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
                 </button>
                 {showTextColor && (
                   <div
-                    className="absolute top-full left-0 mt-1 p-2 bg-white rounded-lg shadow-xl border border-gray-200"
-                    style={{ zIndex: 99999, minWidth: '120px' }}
+                    className="absolute top-full left-0 mt-1 p-2 rounded-lg shadow-xl border"
+                    style={{ zIndex: 99999, minWidth: '120px', background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
                     onMouseDown={e => e.stopPropagation()}
                   >
-                    <p className="text-[10px] font-semibold text-gray-400 mb-1.5 px-0.5">글씨 색</p>
+                    <p className="text-[10px] font-semibold mb-1.5 px-0.5" style={{ color: 'var(--text-muted)' }}>글씨 색</p>
                     <div className="grid grid-cols-4 gap-1.5">
                       {TEXT_COLORS.map(c => (
                         <button
@@ -343,11 +357,11 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
                 </button>
                 {showHighlight && (
                   <div
-                    className="absolute top-full left-0 mt-1 p-2 bg-white rounded-lg shadow-xl border border-gray-200"
-                    style={{ zIndex: 99999, minWidth: '130px' }}
+                    className="absolute top-full left-0 mt-1 p-2 rounded-lg shadow-xl border"
+                    style={{ zIndex: 99999, minWidth: '130px', background: 'var(--bg-elevated)', borderColor: 'var(--border)' }}
                     onMouseDown={e => e.stopPropagation()}
                   >
-                    <p className="text-[10px] font-semibold text-gray-400 mb-1.5 px-0.5">형광펜 색</p>
+                    <p className="text-[10px] font-semibold mb-1.5 px-0.5" style={{ color: 'var(--text-muted)' }}>형광펜 색</p>
                     <div className="grid grid-cols-4 gap-1.5">
                       {HIGHLIGHT_COLORS.map((c, i) => (
                         <button
@@ -406,17 +420,7 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
             }
           }}
         >
-          <input
-            value={title}
-            onChange={e => {
-              setTitle(e.target.value)
-              debouncedUpdate({ title: e.target.value })
-            }}
-            placeholder="새 메모"
-            className="font-bold text-sm bg-transparent border-none outline-none w-full mb-2 placeholder-black/30"
-            style={{ color: 'rgba(0,0,0,0.8)' }}
-          />
-          <div className="w-full h-px mb-2" style={{ borderBottom: '1px dashed rgba(0,0,0,0.1)' }} />
+          
 
           <div
             ref={contentRef}
@@ -434,7 +438,7 @@ export function StickyNote({ memo, onUpdate, onDelete, onFocus }: StickyNoteProp
             className="empty-placeholder flex-1 bg-transparent border-none outline-none text-[13px] leading-relaxed whitespace-pre-wrap break-words overflow-y-auto"
             style={{ color: 'rgba(0,0,0,0.7)', scrollbarWidth: 'thin' }}
             data-placeholder="메모 내용을 입력하세요..."
-            dangerouslySetInnerHTML={{ __html: memo.content }}
+            dangerouslySetInnerHTML={{ __html: initialContent.current }}
           />
         </div>
 

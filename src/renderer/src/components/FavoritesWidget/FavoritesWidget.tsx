@@ -32,13 +32,19 @@ export default function FavoritesWidget({ isWidget = false }: { isWidget?: boole
     }
   }
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+
   async function handleDeleteFavorite(id: number, e: React.MouseEvent) {
     e.stopPropagation()
     if (!window.api.file.removeFavorite) return
-    if (confirm('이 항목을 즐겨찾기에서 제거하시겠습니까?')) {
-      await window.api.file.removeFavorite(id)
-      loadFavorites()
-    }
+    setDeleteConfirmId(id)
+  }
+
+  async function executeDeleteFavorite() {
+    if (deleteConfirmId === null || !window.api.file.removeFavorite) return
+    await window.api.file.removeFavorite(deleteConfirmId)
+    setDeleteConfirmId(null)
+    loadFavorites()
   }
 
   async function handleAddFavoriteDialog(type: 'file' | 'folder') {
@@ -107,12 +113,15 @@ export default function FavoritesWidget({ isWidget = false }: { isWidget?: boole
     >
       {/* 타이틀 영역 */}
       {!isWidget && (
-        <div className="px-6 pt-6 pb-2 shrink-0">
-          <h1 className="text-xl font-bold flex items-center gap-2 mb-1" style={{ color: 'var(--text-primary)' }}>
-            <FolderHeart size={20} className="text-pink-500" />
-            즐겨찾기
-          </h1>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>자주 쓰는 사이트와 파일을 빠르게 열 수 있어요.</p>
+        <div className="px-6 pt-6 pb-2 shrink-0 flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: 'linear-gradient(135deg, #f43f5e, #e11d48)' }}>
+            <FolderHeart size={16} className="text-white" />
+          </div>
+          <div>
+            <h1 className="page-title">즐겨찾기/링크</h1>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>자주 사용하는 업무 포털과 외부 사이트를 모아 빠르게 접근하세요.</p>
+          </div>
         </div>
       )}
       {isWidget && (
@@ -305,6 +314,21 @@ export default function FavoritesWidget({ isWidget = false }: { isWidget?: boole
             <div className="flex gap-2">
               <button onClick={() => setShowWebsiteDialog(false)} className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>취소</button>
               <button onClick={handleAddWebsite} disabled={!webName || !webUrl} className="flex-1 py-2 rounded-lg text-xs font-semibold bg-pink-500 text-white transition-colors disabled:opacity-50 hover:bg-pink-600">추가</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteConfirmId !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200"
+          onClick={() => setDeleteConfirmId(null)}>
+          <div className="card w-full max-w-sm p-6 overflow-hidden shadow-2xl flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>즐겨찾기 삭제</h3>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+              이 항목을 즐겨찾기에서 제거하시겠습니까?
+            </p>
+            <div className="flex justify-end gap-2 mt-2">
+              <button onClick={() => setDeleteConfirmId(null)} className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" style={{ color: 'var(--text-secondary)' }}>취소</button>
+              <button onClick={executeDeleteFavorite} className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors shadow-sm">삭제</button>
             </div>
           </div>
         </div>
