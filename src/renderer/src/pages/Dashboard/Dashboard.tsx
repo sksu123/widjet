@@ -105,6 +105,7 @@ export default function Dashboard() {
   
   // 레이아웃 추가 상태
   const [showSchoolScheduleInCalendar, setShowSchoolScheduleInCalendar] = useState(true)
+  const [showAdminScheduleInCalendar, setShowAdminScheduleInCalendar] = useState(true)
   const [rightTab, setRightTab] = useState<'todo' | 'school'>('todo')
 
   // 행정달력 일정
@@ -454,61 +455,60 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col gap-4 min-w-0">
         <div className="flex-1 flex flex-col rounded-2xl border p-5 shadow-sm min-h-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         {/* 캘린더 헤더 */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-              <CalendarIcon size={22} className="text-blue-500" />
-              이번 달 일정
-            </h2>
-                        
-            <div className="flex items-center gap-2 px-2 py-1 rounded-lg border ml-2" style={{ background: 'rgba(0,0,0,0.03)', borderColor: 'var(--border)' }}>
-              <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>학사일정 표시</span>
-              <button 
-                onClick={() => setShowSchoolScheduleInCalendar(!showSchoolScheduleInCalendar)}
-                className={`w-8 h-4 rounded-full transition-colors relative ${showSchoolScheduleInCalendar ? 'bg-blue-500' : 'bg-slate-300'}`}
-              >
-                <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${showSchoolScheduleInCalendar ? 'left-4' : 'left-0.5'}`} />
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {/* 달 변경 버튼 */}
-            <div className="flex items-center gap-2">
-              <button onClick={() => {
-                const prevDate = new Date(scheduleYear, scheduleMonth - 2, 1)
-                setScheduleYear(prevDate.getFullYear())
-                setScheduleMonth(prevDate.getMonth() + 1)
-                loadSchoolSchedule(prevDate.getFullYear(), prevDate.getMonth() + 1)
-                window.api.calendar.getMonth(prevDate.getFullYear(), prevDate.getMonth() + 1).then(r => { if(r.success) setMonthSchedules(r.data as Schedule[]) })
-              }} className="p-1.5 rounded-lg transition-colors" style={{ background: 'transparent' }} onMouseOver={e=>e.currentTarget.style.background='rgba(0,0,0,0.05)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                <ChevronLeft size={18} style={{ color: 'var(--text-muted)' }} />
-              </button>
-              <span className="text-lg font-bold min-w-[100px] text-center" style={{ color: 'var(--text-primary)' }}>
-                {scheduleYear}년 {scheduleMonth}월
-              </span>
-              <button onClick={() => {
-                const nextDate = new Date(scheduleYear, scheduleMonth, 1)
-                setScheduleYear(nextDate.getFullYear())
-                setScheduleMonth(nextDate.getMonth() + 1)
-                loadSchoolSchedule(nextDate.getFullYear(), nextDate.getMonth() + 1)
-                window.api.calendar.getMonth(nextDate.getFullYear(), nextDate.getMonth() + 1).then(r => { if(r.success) setMonthSchedules(r.data as Schedule[]) })
-              }} className="p-1.5 rounded-lg transition-colors" style={{ background: 'transparent' }} onMouseOver={e=>e.currentTarget.style.background='rgba(0,0,0,0.05)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                <ChevronRight size={18} style={{ color: 'var(--text-muted)' }} />
-              </button>
-            </div>
-            
-            <button className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
-              style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}
-              onClick={() => {
-                const now = new Date()
-                setScheduleYear(now.getFullYear())
-                setScheduleMonth(now.getMonth() + 1)
-                loadSchoolSchedule(now.getFullYear(), now.getMonth() + 1)
-              }}>
-              오늘
+        <div className="flex items-center justify-start gap-3 mb-6">
+          <div className="flex items-center gap-1">
+            <button onClick={() => {
+              const prevDate = new Date(scheduleYear, scheduleMonth - 2, 1)
+              setScheduleYear(prevDate.getFullYear())
+              setScheduleMonth(prevDate.getMonth() + 1)
+              loadSchoolSchedule(prevDate.getFullYear(), prevDate.getMonth() + 1)
+              window.api.calendar.getMonth(prevDate.getFullYear(), prevDate.getMonth() + 1).then(r => { if(r.success) setMonthSchedules(r.data as Schedule[]) })
+            }} className="p-1.5 rounded-lg transition-colors" style={{ background: 'transparent' }} onMouseOver={e=>e.currentTarget.style.background='rgba(0,0,0,0.05)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+              <ChevronLeft size={18} style={{ color: 'var(--text-muted)' }} />
             </button>
-            
+            <span className="text-xl font-bold min-w-[100px] text-center" style={{ color: 'var(--text-primary)' }}>
+              {scheduleYear}년 {scheduleMonth}월
+            </span>
+            <button onClick={() => {
+              const nextDate = new Date(scheduleYear, scheduleMonth, 1)
+              setScheduleYear(nextDate.getFullYear())
+              setScheduleMonth(nextDate.getMonth() + 1)
+              loadSchoolSchedule(nextDate.getFullYear(), nextDate.getMonth() + 1)
+              window.api.calendar.getMonth(nextDate.getFullYear(), nextDate.getMonth() + 1).then(r => { if(r.success) setMonthSchedules(r.data as Schedule[]) })
+            }} className="p-1.5 rounded-lg transition-colors" style={{ background: 'transparent' }} onMouseOver={e=>e.currentTarget.style.background='rgba(0,0,0,0.05)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+              <ChevronRight size={18} style={{ color: 'var(--text-muted)' }} />
+            </button>
+          </div>
+
+          <button className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+            style={{ background: 'rgba(59,130,246,0.1)', color: '#3b82f6' }}
+            onClick={() => {
+              const now = new Date()
+              setScheduleYear(now.getFullYear())
+              setScheduleMonth(now.getMonth() + 1)
+              loadSchoolSchedule(now.getFullYear(), now.getMonth() + 1)
+            }}>
+            오늘
+          </button>
+          
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border ml-2" style={{ background: 'rgba(0,0,0,0.03)', borderColor: 'var(--border)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>학사일정 표시</span>
+            <button 
+              onClick={() => setShowSchoolScheduleInCalendar(!showSchoolScheduleInCalendar)}
+              className={`w-8 h-4 rounded-full transition-colors relative ${showSchoolScheduleInCalendar ? 'bg-blue-500' : 'bg-slate-300'}`}
+            >
+              <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${showSchoolScheduleInCalendar ? 'left-4' : 'left-0.5'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border" style={{ background: 'rgba(0,0,0,0.03)', borderColor: 'var(--border)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>행정일정 표시</span>
+            <button 
+              onClick={() => setShowAdminScheduleInCalendar(!showAdminScheduleInCalendar)}
+              className={`w-8 h-4 rounded-full transition-colors relative ${showAdminScheduleInCalendar ? 'bg-blue-500' : 'bg-slate-300'}`}
+            >
+              <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${showAdminScheduleInCalendar ? 'left-4' : 'left-0.5'}`} />
+            </button>
           </div>
         </div>
 
@@ -608,20 +608,20 @@ export default function Dashboard() {
                       })}
                       
                       {/* 학사일정 */}
-                      {showSchoolScheduleInCalendar && daySchoolEvents.map((ev, i) => (
+                      {daySchoolEvents.filter(ev => showSchoolScheduleInCalendar || ev.isHoliday).map((ev, i) => (
                         <div key={`sc-${i}`} className=" truncate px-1.5 py-0.5 rounded"
                           style={{ background: ev.isHoliday ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)', color: ev.isHoliday ? '#ef4444' : 'var(--text-muted)', fontSize: '10px' }}>
                           {ev.eventName}
                         </div>
                       ))}
                       {/* 행정달력 일정 */}
-                      {dayAdminSchedules.slice(0, 2).map((s, i) => (
+                      {showAdminScheduleInCalendar && dayAdminSchedules.slice(0, 2).map((s, i) => (
                         <div key={`adm-${i}`} className="truncate px-1.5 py-0.5 rounded"
                           style={{ background: s.is_deadline === 1 ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.12)', color: s.is_deadline === 1 ? '#ef4444' : '#d97706', fontSize: '10px', fontWeight: 600 }}>
                           {s.is_deadline === 1 ? '⚑ ' : '📋 '}{s.title}
                         </div>
                       ))}
-                      {dayAdminSchedules.length > 2 && (
+                      {showAdminScheduleInCalendar && dayAdminSchedules.length > 2 && (
                         <div style={{ fontSize: '9px', color: '#d97706', paddingLeft: 2 }}>+{dayAdminSchedules.length - 2}개 행정</div>
                       )}
                     </div>
@@ -634,7 +634,9 @@ export default function Dashboard() {
 
         {/* 캘린더 날짜 hover 팝업 (fixed - 레이아웃 흔들림 없음) */}
         {hoveredDay && (() => {
-          const totalItems = hoveredDay.daySchedules.length + hoveredDay.daySchoolEvents.length + hoveredDay.dayAdminSchedules.length
+          const filteredSchool = hoveredDay.daySchoolEvents.filter(ev => showSchoolScheduleInCalendar || ev.isHoliday)
+          const filteredAdmin = showAdminScheduleInCalendar ? hoveredDay.dayAdminSchedules : []
+          const totalItems = hoveredDay.daySchedules.length + filteredSchool.length + filteredAdmin.length
           const popupH = 48 + totalItems * 28
           const spaceBelow = window.innerHeight - hoveredDay.y
           const showBelow = spaceBelow > popupH + 12
@@ -667,7 +669,7 @@ export default function Dashboard() {
                     </div>
                   ))}
                   {/* 학사일정 */}
-                  {hoveredDay.daySchoolEvents.map((ev, i) => (
+                  {filteredSchool.map((ev, i) => (
                     <div key={`p-sc-${i}`} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg"
                       style={{ background: ev.isHoliday ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)', color: ev.isHoliday ? '#ef4444' : 'var(--text-secondary)' }}>
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ev.isHoliday ? '#ef4444' : '#94a3b8' }} />
@@ -675,7 +677,7 @@ export default function Dashboard() {
                     </div>
                   ))}
                   {/* 행정달력 일정 */}
-                  {hoveredDay.dayAdminSchedules.map((s, i) => {
+                  {filteredAdmin.map((s, i) => {
                     const catColor = getAdminCategoryColor(s.category)
                     return (
                       <div key={`p-adm-${i}`} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg"

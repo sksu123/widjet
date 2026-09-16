@@ -518,6 +518,7 @@ export default function Settings() {
             </select>
           </div>
         </div>
+      )}
       {activeTab === 'version' && (
         <div className="card space-y-5">
           {/* ===== 버전 정보 ===== */}
