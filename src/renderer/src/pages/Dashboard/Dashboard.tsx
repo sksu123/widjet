@@ -448,14 +448,14 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      <div className="flex gap-4 min-h-full fade-in pb-4">
+      <div className="flex gap-2 lg:gap-4 min-h-full fade-in pb-4">
       {/* ==================================================== */}
       {/* 좌측 패널: 대형 캘린더 (화면의 약 60~65% 차지) */}
       {/* ==================================================== */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0">
-        <div className="flex-1 flex flex-col rounded-2xl border p-5 shadow-sm min-h-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+      <div className="flex-1 flex flex-col gap-2 lg:gap-4 min-w-0">
+        <div className="flex-1 flex flex-col rounded-2xl border p-3 lg:p-4 xl:p-5 shadow-sm min-h-0" style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}>
         {/* 캘린더 헤더 */}
-        <div className="flex items-center justify-start gap-3 mb-6">
+        <div className="flex flex-wrap items-center justify-start gap-2 mb-3 lg:mb-5">
           <div className="flex items-center gap-1">
             <button onClick={() => {
               const prevDate = new Date(scheduleYear, scheduleMonth - 2, 1)
@@ -466,7 +466,7 @@ export default function Dashboard() {
             }} className="p-1.5 rounded-lg transition-colors" style={{ background: 'transparent' }} onMouseOver={e=>e.currentTarget.style.background='rgba(0,0,0,0.05)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
               <ChevronLeft size={18} style={{ color: 'var(--text-muted)' }} />
             </button>
-            <span className="text-xl font-bold min-w-[100px] text-center" style={{ color: 'var(--text-primary)' }}>
+            <span className="text-base lg:text-xl font-bold min-w-[80px] lg:min-w-[100px] text-center" style={{ color: 'var(--text-primary)' }}>
               {scheduleYear}년 {scheduleMonth}월
             </span>
             <button onClick={() => {
@@ -515,16 +515,16 @@ export default function Dashboard() {
         {/* 캘린더 그리드 */}
         <div className="flex-1 flex flex-col">
           {/* 요일 헤더 */}
-          <div className="grid grid-cols-7 gap-2 mb-2">
+          <div className="grid grid-cols-7 gap-1 lg:gap-2 mb-1 lg:mb-2">
             {['일','월','화','수','목','금','토'].map((d, i) => (
-              <div key={d} className="text-center font-bold text-sm py-1" style={{ color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : 'var(--text-muted)' }}>
+              <div key={d} className="text-center font-bold text-xs lg:text-sm py-1" style={{ color: i === 0 ? '#ef4444' : i === 6 ? '#3b82f6' : 'var(--text-muted)' }}>
                 {d}
               </div>
             ))}
           </div>
           
           {/* 날짜 그리드 */}
-          <div className="grid grid-cols-7 gap-2 flex-1" style={{ gridAutoRows: 'minmax(80px, auto)' }}>
+          <div className="grid grid-cols-7 gap-1 lg:gap-2 flex-1" style={{ gridAutoRows: 'minmax(65px, auto)' }}>
             {(() => {
               const displayMonthStart = new Date(scheduleYear, scheduleMonth - 1, 1)
               const displayMonthEnd = endOfMonth(displayMonthStart)
@@ -553,7 +553,7 @@ export default function Dashboard() {
 
                 return (
                   <div key={idx} 
-                    className={`rounded-xl p-2 border flex flex-col transition-colors ${isTodayFlag ? 'ring-2 ring-blue-500 ring-offset-1' : ''} ${isCurrentMonth ? 'hover:shadow-md' : ''}`}
+                    className={`rounded-lg lg:rounded-xl p-1 lg:p-2 border flex flex-col transition-colors ${isTodayFlag ? 'ring-2 ring-blue-500 ring-offset-1' : ''} ${isCurrentMonth ? 'hover:shadow-md' : ''}`}
                     style={{ 
                       background: isCurrentMonth ? 'rgba(0,0,0,0.015)' : 'rgba(0,0,0,0.03)',
                       borderColor: isTodayFlag ? 'rgba(59,130,246,0.3)' : 'var(--border)',
@@ -580,8 +580,8 @@ export default function Dashboard() {
                     onMouseLeave={() => setHoveredDay(null)}
                   >
                     {/* 날짜 텍스트 */}
-                    <div className="flex justify-between items-start mb-1.5">
-                      <span className={`text-sm font-bold w-6 h-6 flex items-center justify-center rounded-full ${isTodayFlag ? 'bg-blue-500 text-white' : ''}`}
+                    <div className="flex justify-between items-start mb-1">
+                      <span className={`text-xs lg:text-sm font-bold w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full ${isTodayFlag ? 'bg-blue-500 text-white' : ''}`}
                         style={{ color: isTodayFlag ? 'white' : (isSunday || isHoliday) ? '#ef4444' : isSaturday ? '#3b82f6' : 'var(--text-primary)' }}>
                         {format(day, 'd')}
                       </span>
@@ -701,16 +701,16 @@ export default function Dashboard() {
       {/* ==================================================== */}
       {/* 우측 패널: 위젯 모음 (화면의 약 35~40% 차지) */}
       {/* ==================================================== */}
-      <div className="w-[380px] xl:w-[420px] flex-shrink-0 flex flex-col gap-4 pr-1">
+      <div className="w-[300px] lg:w-[350px] xl:w-[400px] flex-shrink-0 flex flex-col gap-2 lg:gap-4 pr-1">
         
         {/* 1. 사용자 정보 및 날씨/시간 (가장 상단 고정) */}
-        <div className="p-5 rounded-2xl flex-shrink-0 flex flex-col gap-3 relative overflow-hidden"
+        <div className="p-3 lg:p-4 xl:p-5 rounded-2xl flex-shrink-0 flex flex-col gap-2 lg:gap-3 relative overflow-hidden"
           style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(20,184,166,0.05))', border: '1px solid rgba(59,130,246,0.2)' }}>
           
           <div className="flex justify-between items-start z-10">
             <div>
               <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{user.school_name} · {user.department}</p>
-              <p className="text-base font-bold mt-0.5" style={{ color: 'var(--text-primary)' }}>{user.name}님, 안녕하세요!</p>
+              <p className="text-sm lg:text-base font-bold mt-0.5" style={{ color: 'var(--text-primary)' }}>{user.name}님, 안녕하세요!</p>
             </div>
             <div className="text-right">
               <RealtimeClock />
@@ -719,17 +719,17 @@ export default function Dashboard() {
 
           {widgetsConfig.weather && weather && (
             <>
-            <div className="mt-2 flex items-center justify-between rounded-xl p-3 cursor-pointer transition-colors"
+            <div className="mt-1 lg:mt-2 flex items-center justify-between rounded-xl p-2 lg:p-3 cursor-pointer transition-colors"
                  onClick={() => setShowWeatherModal(true)}
                  style={{ border: '1px solid var(--border)', background: 'rgba(0,0,0,0.05)' }}>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 lg:gap-3">
                 <div className="scale-110">{weatherIcon(weather.icon)}</div>
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{weather.temp}°C</span>
+                    <span className="text-lg lg:text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{weather.temp}°C</span>
                     <span className="text-[11px] font-medium px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.2)', color: '#60a5fa' }}>{weather.description}</span>
                   </div>
-                  <p className=" mt-1" style={{ color: 'var(--text-muted)' }}>{weather.city}</p>
+                  <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>{weather.city}</p>
                 </div>
               </div>
               <div className="text-right space-y-1">

@@ -20,7 +20,7 @@ const navItems = [
 export default function Sidebar() {
   return (
     <aside
-      className="w-56 flex-shrink-0 flex flex-col py-3 overflow-y-auto overflow-x-hidden"
+      className="w-44 lg:w-52 xl:w-56 flex-shrink-0 flex flex-col py-3 overflow-y-auto overflow-x-hidden"
       style={{
         background: 'var(--bg-sidebar, var(--bg-secondary))',
         borderRight: '1px solid var(--border)',
@@ -36,7 +36,7 @@ export default function Sidebar() {
               key={to}
               to={to!}
               end={to === '/'}
-              className="sidebar-nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium group relative"
+              className="sidebar-nav-item flex items-center gap-2 lg:gap-3 px-2 lg:px-3 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm font-medium group relative"
               style={({ isActive }) => ({
                 color: isActive ? 'var(--text-sidebar, var(--text-primary))' : 'var(--text-sidebar-muted, var(--text-muted))',
                 background: isActive ? `linear-gradient(135deg, ${color}44, ${color}22)` : 'transparent',

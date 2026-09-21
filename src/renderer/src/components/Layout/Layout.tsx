@@ -14,7 +14,7 @@ export default function Layout() {
         <Sidebar />
 
         {/* 메인 콘텐츠 */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-5">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 lg:p-4 xl:p-5">
           <div className="page-enter">
             <Outlet />
           </div>

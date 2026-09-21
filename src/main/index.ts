@@ -12,9 +12,9 @@ let mainWindow: BrowserWindow | null = null
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
-    height: 800,
-    minWidth: 960,
-    minHeight: 640,
+    height: 820,
+    minWidth: 1100,
+    minHeight: 720,
     show: false,
     frame: false,          // 커스텀 타이틀바
     transparent: false,
