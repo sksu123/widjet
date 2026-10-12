@@ -9,6 +9,7 @@ import Calculator from './pages/Calculator/Calculator'
 import CalendarPage from './pages/Calendar/CalendarPage'
 import CorporateCard from './pages/CorporateCard/CorporateCard'
 import Contacts from './pages/Contacts/Contacts'
+import PdfWorkshop from './pages/PdfWorkshop/PdfWorkshop'
 
 import Automation from './pages/Automation/Automation'
 import Favorites from './pages/Favorites/Favorites'
@@ -62,6 +63,7 @@ export default function App() {
           <Route path="calendar" element={<CalendarPage />} />
                     <Route path="card" element={<CorporateCard />} />
           <Route path="contacts" element={<Contacts />} />
+          <Route path="pdf-workshop" element={<PdfWorkshop />} />
 
           <Route path="automation" element={<Automation />} />
           <Route path="favorites" element={<Favorites />} />

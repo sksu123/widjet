@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Bot, BookOpen, Calculator, CalendarDays, FileText,
-  CreditCard, Package, Zap, Settings, ChevronRight, BookUser, FolderHeart, FileEdit, Search
+  CreditCard, Package, Zap, Settings, ChevronRight, BookUser, FolderHeart, FileEdit, Search, Layers
 } from 'lucide-react'
 
 const navItems = [
@@ -15,12 +15,13 @@ const navItems = [
   { to: '/calendar', icon: CalendarDays, label: '행정 달력', color: '#f59e0b' },
   { to: '/card', icon: CreditCard, label: '법인카드', color: '#ec4899' },
   { to: '/contacts', icon: BookUser, label: '주요 연락처', color: '#14b8a6' },
+  { to: '/pdf-workshop', icon: Layers, label: 'PDF 공작소', color: '#6366f1' },
 ]
 
 export default function Sidebar() {
   return (
     <aside
-      className="w-44 lg:w-52 xl:w-56 flex-shrink-0 flex flex-col py-3 overflow-y-auto overflow-x-hidden"
+      className="w-56 flex-shrink-0 flex flex-col py-3 overflow-y-auto overflow-x-hidden"
       style={{
         background: 'var(--bg-sidebar, var(--bg-secondary))',
         borderRight: '1px solid var(--border)',
@@ -36,7 +37,7 @@ export default function Sidebar() {
               key={to}
               to={to!}
               end={to === '/'}
-              className="sidebar-nav-item flex items-center gap-2 lg:gap-3 px-2 lg:px-3 py-2 lg:py-2.5 rounded-lg text-xs lg:text-sm font-medium group relative"
+              className="sidebar-nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium group relative"
               style={({ isActive }) => ({
                 color: isActive ? 'var(--text-sidebar, var(--text-primary))' : 'var(--text-sidebar-muted, var(--text-muted))',
                 background: isActive ? `linear-gradient(135deg, ${color}44, ${color}22)` : 'transparent',
