@@ -14,10 +14,13 @@ const targetDirs = [
 
 console.log('📦 Building static mobile PWA bundle for Cloud hosting...')
 
-const htmlContent = getMobileHtml('교행 보드', 'v2.0.57', 'cloud')
+const htmlContent = getMobileHtml('교행 보드', 'v2.0.58', 'cloud')
 const manifestContent = getManifestJson()
 const swContent = getServiceWorkerJs()
 const srcIcon = path.join(rootDir, 'resources', 'icon.png')
+
+// GitHub Pages에서 Jekyll 엔진을 완전히 비활성화하기 위한 .nojekyll 파일 생성
+fs.writeFileSync(path.join(rootDir, '.nojekyll'), '', 'utf8')
 
 for (const targetDir of targetDirs) {
   if (!fs.existsSync(targetDir)) {
@@ -26,6 +29,7 @@ for (const targetDir of targetDirs) {
   fs.writeFileSync(path.join(targetDir, 'index.html'), htmlContent, 'utf8')
   fs.writeFileSync(path.join(targetDir, 'manifest.json'), manifestContent, 'utf8')
   fs.writeFileSync(path.join(targetDir, 'sw.js'), swContent, 'utf8')
+  fs.writeFileSync(path.join(targetDir, '.nojekyll'), '', 'utf8')
   if (fs.existsSync(srcIcon)) {
     fs.copyFileSync(srcIcon, path.join(targetDir, 'icon.png'))
   }
