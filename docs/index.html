@@ -858,7 +858,7 @@
       if (!text) return '';
       text = text.trim();
       // 1) #key=xxxx 또는 ?key=xxxx 또는 ?k=xxxx
-      const match = text.match(/(?:#|?|&)(?:key|k)=([a-f0-9]{16,64})/i);
+      const match = text.match(/[#?&](?:key|k)=([a-f0-9]{16,64})/i);
       if (match && match[1]) return match[1];
       // 2) 48자리 16진수 문자열 직접 입력된 경우
       const hexMatch = text.match(/[a-f0-9]{32,64}/i);

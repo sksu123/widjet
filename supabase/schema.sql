@@ -80,7 +80,7 @@ CREATE OR REPLACE FUNCTION public.push_snapshot(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE
   v_hash TEXT;
@@ -94,7 +94,7 @@ BEGIN
     RAISE EXCEPTION 'Payload size exceeds limit (256KB)';
   END IF;
 
-  v_hash := encode(digest(p_key, 'sha256'), 'hex');
+  v_hash := encode(sha256(p_key::bytea), 'hex');
 
   -- 스냅샷 업서트
   INSERT INTO public.sync_snapshots (key_hash, payload, updated_at)
@@ -129,7 +129,7 @@ CREATE OR REPLACE FUNCTION public.get_snapshot(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE
   v_hash TEXT;
@@ -139,7 +139,7 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  v_hash := encode(digest(p_key, 'sha256'), 'hex');
+  v_hash := encode(sha256(p_key::bytea), 'hex');
 
   SELECT jsonb_build_object(
     'payload', payload,
@@ -163,7 +163,7 @@ CREATE OR REPLACE FUNCTION public.register_push(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE
   v_hash TEXT;
@@ -176,7 +176,7 @@ BEGIN
     RAISE EXCEPTION 'Invalid subscription data';
   END IF;
 
-  v_hash := encode(digest(p_key, 'sha256'), 'hex');
+  v_hash := encode(sha256(p_key::bytea), 'hex');
 
   INSERT INTO public.push_subscriptions (key_hash, endpoint, p256dh, auth, created_at)
   VALUES (v_hash, p_endpoint, p_p256dh, p_auth, NOW())
@@ -199,7 +199,7 @@ CREATE OR REPLACE FUNCTION public.unregister_push(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE
   v_hash TEXT;
@@ -208,7 +208,7 @@ BEGIN
     RETURN FALSE;
   END IF;
 
-  v_hash := encode(digest(p_key, 'sha256'), 'hex');
+  v_hash := encode(sha256(p_key::bytea), 'hex');
 
   DELETE FROM public.push_subscriptions
   WHERE key_hash = v_hash AND endpoint = p_endpoint;
@@ -224,7 +224,7 @@ CREATE OR REPLACE FUNCTION public.revoke_key(
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = public, extensions, pg_catalog
 AS $$
 DECLARE
   v_hash TEXT;
@@ -233,7 +233,7 @@ BEGIN
     RETURN FALSE;
   END IF;
 
-  v_hash := encode(digest(p_key, 'sha256'), 'hex');
+  v_hash := encode(sha256(p_key::bytea), 'hex');
 
   DELETE FROM public.sync_snapshots WHERE key_hash = v_hash;
   DELETE FROM public.reminders WHERE key_hash = v_hash;
@@ -248,7 +248,7 @@ CREATE OR REPLACE FUNCTION public.cleanup_expired_data()
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_catalog
+SET search_path = public, extensions, pg_catalog
 AS $$
 BEGIN
   -- 90일 이상 갱신 없는 스냅샷 및 연관 데이터 삭제
