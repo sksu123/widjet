@@ -170,6 +170,32 @@ const api = {
     onUpdateDownloaded: (callback: (info: any) => void) => {
       ipcRenderer.on('updater:update-downloaded', (_, info) => callback(info))
     }
+  },
+
+  // 모바일 연동 (PWA)
+  mobile: {
+    getStatus: () => ipcRenderer.invoke('mobile:get-status'),
+    regenerateToken: () => ipcRenderer.invoke('mobile:regenerate-token'),
+    startServer: () => ipcRenderer.invoke('mobile:start-server'),
+    stopServer: () => ipcRenderer.invoke('mobile:stop-server'),
+    notifyChange: () => ipcRenderer.invoke('mobile:notify-change'),
+    onDataChanged: (callback: () => void) => {
+      const listener = () => callback()
+      ipcRenderer.on('mobile:data-changed', listener)
+      return () => {
+        ipcRenderer.removeListener('mobile:data-changed', listener)
+      }
+    }
+  },
+
+  // 외부 네트워크 클라우드 연동 (Supabase)
+  cloud: {
+    getStatus: () => ipcRenderer.invoke('cloud:get-status'),
+    enable: () => ipcRenderer.invoke('cloud:enable'),
+    syncNow: () => ipcRenderer.invoke('cloud:sync-now'),
+    disable: () => ipcRenderer.invoke('cloud:disable'),
+    regenerateKey: () => ipcRenderer.invoke('cloud:regenerate-key'),
+    setHostingUrl: (url: string) => ipcRenderer.invoke('cloud:set-hosting-url', url)
   }
 }
 

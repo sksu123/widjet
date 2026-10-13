@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import axios from 'axios'
 import * as cheerio from 'cheerio'
 import { getDb } from '../db/database'
+import { triggerCloudSync } from '../cloud/cloudSyncManager'
 
 // 날씨 아이콘 분류 헬퍼
 function getNaverWeatherIcon($: cheerio.CheerioAPI, el: cheerio.Cheerio<any>): string {
@@ -292,6 +293,7 @@ export function registerCalendarHandlers(): void {
     try {
       const db = getDb()
       db.prepare('UPDATE schedules SET is_completed = ? WHERE id = ?').run(is_completed, id)
+      triggerCloudSync()
       return { success: true }
     } catch (err: any) {
       return { success: false, error: err.message }

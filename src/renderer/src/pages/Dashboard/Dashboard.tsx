@@ -141,6 +141,14 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadData()
+    if (window.api && (window.api as any).mobile?.onDataChanged) {
+      const unsub = (window.api as any).mobile.onDataChanged(() => {
+        loadData()
+      })
+      return () => {
+        if (typeof unsub === 'function') unsub()
+      }
+    }
   }, [])
 
   // 달 변경 시 해당 달 일정 자동 갱신
@@ -404,6 +412,9 @@ export default function Dashboard() {
     setTodaySchedules(prev => prev.map(s => s.id === id ? { ...s, is_completed: nextVal } : s))
     if (window.api.calendar.toggleScheduleStatus) {
       await window.api.calendar.toggleScheduleStatus(id, nextVal)
+    }
+    if ((window.api as any).mobile?.notifyChange) {
+      (window.api as any).mobile.notifyChange()
     }
   }
 

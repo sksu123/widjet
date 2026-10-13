@@ -1,0 +1,22 @@
+{
+  "name": "교행 보드 모바일",
+  "short_name": "교행보드",
+  "description": "학교 행정실 오늘의 일정/할일 및 D-DAY 모바일 연동 앱",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1e293b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

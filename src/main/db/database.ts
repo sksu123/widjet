@@ -33,6 +33,7 @@ export async function setupDatabase(): Promise<void> {
   // 마이그레이션: contacts 테이블에 is_favorite, sort_order 컬럼이 없을 경우 추가
   try { db.exec('ALTER TABLE contacts ADD COLUMN is_favorite INTEGER DEFAULT 0'); } catch(e) {}
   try { db.exec('ALTER TABLE contacts ADD COLUMN sort_order INTEGER DEFAULT 0'); } catch(e) {}
+  try { db.exec('ALTER TABLE schedules ADD COLUMN is_dday INTEGER DEFAULT 0'); } catch(e) {}
 
   console.log('✅ Database initialized:', dbPath)
 }

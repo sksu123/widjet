@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db/database'
+import { triggerCloudSync } from '../cloud/cloudSyncManager'
 
 export function registerDbHandlers(): void {
 
@@ -15,6 +16,7 @@ export function registerDbHandlers(): void {
   ipcMain.handle('db:update-setting', async (_, key: string, value: string) => {
     const db = getDb()
     db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)').run(key, value)
+    if (key === 'custom_ddays') triggerCloudSync()
     return { success: true }
   })
 
@@ -94,6 +96,7 @@ export function registerDbHandlers(): void {
       }
     })()
     
+    triggerCloudSync()
     return { success: true, id: lastId }
   })
 
@@ -103,12 +106,14 @@ export function registerDbHandlers(): void {
       UPDATE schedules SET title=?, description=?, start_date=?, end_date=?, category=?, color=?, is_all_day=?, is_dday=?
       WHERE id=?
     `).run(data.title, data.description, data.start_date, data.end_date, data.category, data.color, data.is_all_day, data.is_dday ? 1 : 0, id)
+    triggerCloudSync()
     return { success: true }
   })
 
   ipcMain.handle('db:delete-schedule', async (_, id: number) => {
     const db = getDb()
     db.prepare('DELETE FROM schedules WHERE id=?').run(id)
+    triggerCloudSync()
     return { success: true }
   })
 

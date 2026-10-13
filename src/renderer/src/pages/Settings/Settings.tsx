@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, User, Database, RefreshCw, Search, Building2, Check, X, Cloud, MapPin, Edit2, Download } from 'lucide-react'
+import { Settings as SettingsIcon, Save, User, Database, RefreshCw, Search, Building2, Check, X, Cloud, MapPin, Edit2, Download, Smartphone, Copy, Wifi, ShieldCheck, ExternalLink, QrCode, Globe, Bell, CheckCircle2 } from 'lucide-react'
 import { RegionSelector } from '../../components/RegionSelector'
 
 export default function Settings() {
@@ -8,8 +8,16 @@ export default function Settings() {
   const [saved, setSaved] = useState(false)
   const [backupDone, setBackupDone] = useState(false)
   const [restoreMsg, setRestoreMsg] = useState('')
-  const [activeTab, setActiveTab] = useState<'general' | 'api' | 'weather' | 'user' | 'data' | 'school' | 'version'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'school' | 'mobile' | 'api' | 'weather' | 'user' | 'data' | 'version'>('general')
   const [autoStart, setAutoStart] = useState(false)
+  const [mobileStatus, setMobileStatus] = useState<any>(null)
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const [selectedIp, setSelectedIp] = useState('')
+  const [cloudStatus, setCloudStatus] = useState<any>(null)
+  const [cloudSyncing, setCloudSyncing] = useState(false)
+  const [copiedCloudUrl, setCopiedCloudUrl] = useState(false)
+  const [editingHosting, setEditingHosting] = useState(false)
+  const [hostingUrlInput, setHostingUrlInput] = useState('')
   // 업데이트 상태: 'idle' | 'checking' | 'latest' | 'available' | 'error'
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available' | 'error' | 'downloaded'>('idle')
   const [updateInfo, setUpdateInfo] = useState<string>('')
@@ -24,12 +32,152 @@ export default function Settings() {
 
   useEffect(() => { 
     loadData()
+    loadMobileStatus()
+    loadCloudStatus()
     if ((window.api as any).system && (window.api as any).system.getVersion) {
       (window.api as any).system.getVersion().then((res: any) => {
         if(res && res.version) setAppVersion('v' + res.version)
       })
     }
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'mobile') {
+      loadMobileStatus()
+      loadCloudStatus()
+    }
+  }, [activeTab])
+
+  
+  async function loadCloudStatus() {
+    if (window.api && (window.api as any).cloud?.getStatus) {
+      const res = await (window.api as any).cloud.getStatus()
+      if (res && res.success) {
+        setCloudStatus(res.data)
+        if (res.data.hostingUrl) setHostingUrlInput(res.data.hostingUrl)
+      }
+    }
+  }
+
+  async function handleEnableCloud() {
+    setCloudSyncing(true)
+    try {
+      if (window.api && (window.api as any).cloud?.enable) {
+        const res = await (window.api as any).cloud.enable()
+        if (res && res.success) {
+          setCloudStatus(res.data)
+        }
+      }
+    } finally {
+      setCloudSyncing(false)
+    }
+  }
+
+  async function handleSyncCloudNow() {
+    setCloudSyncing(true)
+    try {
+      if (window.api && (window.api as any).cloud?.syncNow) {
+        const res = await (window.api as any).cloud.syncNow()
+        if (res && res.success) {
+          setCloudStatus(res.data)
+        } else {
+          alert('동기화 실패: ' + (res?.error || '알 수 없는 오류'))
+        }
+      }
+    } finally {
+      setCloudSyncing(false)
+    }
+  }
+
+  async function handleDisableCloud() {
+    if (!confirm('클라우드 연동을 해제하시겠습니까?\n클라우드에 저장된 모든 데이터가 삭제되며 스마트폰 접속이 차단됩니다.')) return
+    if (window.api && (window.api as any).cloud?.disable) {
+      const res = await (window.api as any).cloud.disable()
+      if (res && res.success) {
+        setCloudStatus(res.data)
+      }
+    }
+  }
+
+  async function handleRegenerateCloudKey() {
+    if (!confirm('새 클라우드 보안 키를 발급하시겠습니까?\n기존 스마트폰의 연결이 해제되므로 새 QR코드를 다시 스캔해야 합니다.')) return
+    setCloudSyncing(true)
+    try {
+      if (window.api && (window.api as any).cloud?.regenerateKey) {
+        const res = await (window.api as any).cloud.regenerateKey()
+        if (res && res.success) {
+          setCloudStatus(res.data)
+          alert('새 보안 키가 발급되었습니다. 스마트폰으로 새 QR 코드를 스캔해주세요.')
+        }
+      }
+    } finally {
+      setCloudSyncing(false)
+    }
+  }
+
+  function handleCopyCloudUrl() {
+    if (!cloudStatus?.mobileAccessUrl) return
+    const url = cloudStatus.mobileAccessUrl
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+    } else if (window.api?.system?.writeClipboard) {
+      window.api.system.writeClipboard(url)
+    }
+    setCopiedCloudUrl(true)
+    setTimeout(() => setCopiedCloudUrl(false), 2000)
+  }
+
+  async function handleSaveHostingUrl() {
+    if (!hostingUrlInput.trim()) return
+    if (window.api && (window.api as any).cloud?.setHostingUrl) {
+      const res = await (window.api as any).cloud.setHostingUrl(hostingUrlInput.trim())
+      if (res && res.success) {
+        setCloudStatus(res.data)
+        setEditingHosting(false)
+      }
+    }
+  }
+
+  async function loadMobileStatus() {
+    if (window.api && (window.api as any).mobile?.getStatus) {
+      const res = await (window.api as any).mobile.getStatus()
+      if (res && res.success) {
+        setMobileStatus(res.data)
+        if (res.data.ip) {
+          setSelectedIp(res.data.ip)
+        }
+      }
+    }
+  }
+
+  async function handleRegenerateToken() {
+    if (!confirm('새 보안 토큰을 발급하시겠습니까?\n기존에 스마트폰에 등록된 연결은 해제되며 새 QR코드를 다시 스캔해야 합니다.')) return
+    if (window.api && (window.api as any).mobile?.regenerateToken) {
+      const res = await (window.api as any).mobile.regenerateToken()
+      if (res && res.success) {
+        setMobileStatus(res.data)
+        alert('새 보안 토큰이 발급되었습니다. 스마트폰으로 새 QR 코드를 스캔해주세요.')
+      }
+    }
+  }
+
+  function handleCopyMobileUrl() {
+    if (!mobileStatus) return
+    const url = getAccessUrl()
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+    } else if (window.api?.system?.writeClipboard) {
+      window.api.system.writeClipboard(url)
+    }
+    setCopiedUrl(true)
+    setTimeout(() => setCopiedUrl(false), 2000)
+  }
+
+  function getAccessUrl() {
+    if (!mobileStatus) return ''
+    const ip = selectedIp || mobileStatus.ip || '127.0.0.1'
+    return `http://${ip}:${mobileStatus.port}/?token=${mobileStatus.token}`
+  }
 
   async function loadData() {
     const [settingsRes, userRes, autoStartRes] = await Promise.all([
@@ -123,6 +271,7 @@ export default function Settings() {
   const TABS = [
     { key: 'general', label: '일반', icon: SettingsIcon },
     { key: 'school', label: '학교 설정', icon: Building2 },
+    { key: 'mobile', label: '모바일 연동 (PWA)', icon: Smartphone },
     { key: 'api', label: 'API 설정', icon: Cloud },
     { key: 'weather', label: '날씨 설정', icon: Cloud },
     { key: 'user', label: '사용자', icon: User },
@@ -358,6 +507,242 @@ export default function Settings() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+            {activeTab === 'mobile' && (
+        <div className="space-y-6">
+
+          {/* ===== 1. [강력 추천] 외부 네트워크 클라우드 연동 (Supabase + PWA) ===== */}
+          <div className="card space-y-5 border-2 border-blue-500/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-base flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                  <Globe size={18} className="text-blue-400" />
+                  외부 네트워크 모바일 연동 (클라우드 + PWA)
+                  <span className="text-[10px] bg-blue-500/20 text-blue-400 border border-blue-500/40 px-2 py-0.5 rounded-full font-bold">
+                    LTE / 집 Wi-Fi 어디서나 가능
+                  </span>
+                </h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  학교 PC와 스마트폰이 다른 네트워크여도 오늘의 일정/할일과 D-DAY를 실시간으로 확인하고 알림을 받습니다.
+                </p>
+              </div>
+
+              {cloudStatus?.enabled ? (
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    클라우드 연동 중
+                  </span>
+                  <button
+                    onClick={handleSyncCloudNow}
+                    disabled={cloudSyncing}
+                    className="btn-ghost text-xs px-2.5 py-1 text-blue-400 hover:text-blue-300 font-medium flex items-center gap-1 border border-blue-500/20"
+                  >
+                    <RefreshCw size={12} className={cloudSyncing ? 'animate-spin' : ''} />
+                    지금 동기화
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleEnableCloud}
+                  disabled={cloudSyncing}
+                  className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-lg shadow-blue-500/20"
+                >
+                  <Globe size={14} />
+                  {cloudSyncing ? '연동 시작 중...' : '클라우드 연동 활성화'}
+                </button>
+              )}
+            </div>
+
+            {cloudStatus?.enabled ? (
+              <>
+                {/* QR 코드 & 모바일 접속 안내 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 rounded-xl border bg-slate-900/40" style={{ borderColor: 'var(--border)' }}>
+                  {/* 좌측: QR 코드 */}
+                  <div className="flex flex-col items-center justify-center p-4 rounded-xl border bg-white/5" style={{ borderColor: 'var(--border)' }}>
+                    {cloudStatus?.qrCode ? (
+                      <div className="bg-white p-3 rounded-2xl shadow-lg border border-slate-200">
+                        <img src={cloudStatus.qrCode} alt="클라우드 접속 QR 코드" className="w-52 h-52 object-contain" />
+                      </div>
+                    ) : (
+                      <div className="w-52 h-52 flex flex-col items-center justify-center text-xs text-muted border border-dashed rounded-xl">
+                        <QrCode size={36} className="mb-2 opacity-40" />
+                        <span>QR 코드 로딩 중...</span>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-center mt-3 text-slate-300 font-medium">
+                      📷 스마트폰 기본 카메라로 비추면 바로 연결됩니다
+                    </p>
+                  </div>
+
+                  {/* 우측: 링크 복사 & 상태 정보 */}
+                  <div className="flex flex-col justify-between space-y-4">
+                    <div className="space-y-3">
+                      {/* 접속 URL */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-semibold text-slate-400">모바일 접속 URL</label>
+                          <button
+                            onClick={() => setEditingHosting(!editingHosting)}
+                            className="text-[10px] text-blue-400 hover:text-blue-300"
+                          >
+                            {editingHosting ? '닫기' : '호스팅 주소 변경'}
+                          </button>
+                        </div>
+                        {editingHosting ? (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={hostingUrlInput}
+                              onChange={e => setHostingUrlInput(e.target.value)}
+                              placeholder="https://sksu123.github.io/widjet/"
+                              className="input text-xs flex-1 font-mono"
+                            />
+                            <button onClick={handleSaveHostingUrl} className="btn-primary text-xs px-3">
+                              저장
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              readOnly
+                              value={cloudStatus.mobileAccessUrl || ''}
+                              className="input text-xs font-mono select-all flex-1 text-slate-300"
+                            />
+                            <button
+                              onClick={handleCopyCloudUrl}
+                              className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-semibold border border-blue-500/20"
+                            >
+                              <Copy size={13} />
+                              {copiedCloudUrl ? '복사됨 ✓' : '복사'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 동기화 상태 카드 */}
+                      <div className="p-3 rounded-lg border text-xs space-y-1.5 bg-slate-950/60" style={{ borderColor: 'var(--border)' }}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400 font-medium">마지막 동기화:</span>
+                          <span className="font-mono text-slate-200">
+                            {cloudStatus.lastSyncTime ? new Date(cloudStatus.lastSyncTime).toLocaleString('ko-KR') : '동기화 이력 없음'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-400 font-medium">동기화 상태:</span>
+                          <span className={cloudStatus.lastSyncStatus === 'success' ? 'text-emerald-400 font-semibold' : 'text-amber-400'}>
+                            {cloudStatus.lastSyncStatus === 'success' ? '정상 최신화됨 ✓' : cloudStatus.lastSyncStatus === 'syncing' ? '전송 중...' : '대기 중'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                          <span className="text-slate-400 font-medium">암호화 보안 키:</span>
+                          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[160px]">{cloudStatus.key}</span>
+                        </div>
+                      </div>
+
+                      {/* 보안 및 키 재발급 */}
+                      <div className="flex items-center justify-between pt-1 text-[11px]">
+                        <button
+                          onClick={handleRegenerateCloudKey}
+                          className="text-amber-400 hover:text-amber-300 font-medium underline underline-offset-2"
+                        >
+                          새 보안 키 재발급
+                        </button>
+                        <button
+                          onClick={handleDisableCloud}
+                          className="text-red-400 hover:text-red-300 font-medium underline underline-offset-2"
+                        >
+                          클라우드 연동 해제
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* PC 브라우저 미리보기 */}
+                    <button
+                      onClick={() => {
+                        if (cloudStatus?.mobileAccessUrl) window.open(cloudStatus.mobileAccessUrl, '_blank')
+                      }}
+                      className="w-full py-2 px-3 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all text-slate-300 hover:text-white border bg-white/5"
+                      style={{ borderColor: 'var(--border)' }}
+                    >
+                      <ExternalLink size={13} />
+                      PC 브라우저에서 모바일 화면 열기
+                    </button>
+                  </div>
+                </div>
+
+                {/* 사용 방법 & 푸시 알림 가이드 */}
+                <div className="p-4 rounded-xl text-xs space-y-2.5 leading-relaxed border bg-blue-500/5 border-blue-500/20">
+                  <h4 className="font-bold text-sm text-blue-400 flex items-center gap-2">
+                    <Bell size={15} /> 모바일 홈 화면 추가 및 알림 활성화 3단계
+                  </h4>
+                  <div className="space-y-1.5 text-slate-300 text-xs">
+                    <div className="flex items-start gap-2">
+                      <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold mt-0.5 flex-shrink-0">1</span>
+                      <span>스마트폰 카메라로 위 QR 코드를 스캔하여 모바일 페이지로 접속합니다.</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold mt-0.5 flex-shrink-0">2</span>
+                      <span>
+                        브라우저 메뉴에서 <strong>[홈 화면에 추가]</strong>(아이폰 사파리: 하단 공유버튼 ➔ 홈 화면에 추가 / 갤럭시 크롬: 우측 상단 더보기 ➔ 앱 설치)를 눌러 앱처럼 설치합니다.
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="w-4 h-4 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold mt-0.5 flex-shrink-0">3</span>
+                      <span>
+                        설치된 앱을 실행한 후 우측 상단의 <strong>🔔 종 아이콘</strong>을 누르면 아침 8시 및 D-DAY 푸시 알림이 활성화됩니다!
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="p-6 rounded-xl border border-dashed text-center space-y-3 bg-slate-900/20" style={{ borderColor: 'var(--border)' }}>
+                <p className="text-sm font-medium text-slate-300">
+                  클라우드 연동을 활성화하면 전용 보안 키와 QR 코드가 생성됩니다.
+                </p>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  일정/할일과 D-DAY 정보만 암호화 스냅샷으로 안전하게 전송되며, 연락처나 카드 내역 등 민감한 개인정보는 일체 올라가지 않습니다.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* ===== 2. 동일 Wi-Fi 내부망 직접 연동 (LAN 모드 - 보조 기능) ===== */}
+          <div className="card space-y-4 opacity-80 hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-xs flex items-center gap-1.5 text-slate-300">
+                  <Wifi size={14} className="text-slate-400" />
+                  동일 Wi-Fi 내부망 직접 연동 (PC 내장 서버)
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  학교 PC와 스마트폰이 같은 Wi-Fi에 연결되어 있을 때 직접 통신하는 기존 방식입니다.
+                </p>
+              </div>
+              {mobileStatus?.running && (
+                <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
+                  LAN 서버 가동 중 (포트 {mobileStatus.port})
+                </span>
+              )}
+            </div>
+
+            <div className="p-3 rounded-lg border text-xs space-y-2 bg-slate-900/30" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-400 font-mono text-[11px]">로컬 접속 주소: {getAccessUrl()}</span>
+                <button
+                  onClick={handleCopyMobileUrl}
+                  className="btn-ghost text-xs px-2 py-1 text-slate-300 hover:text-white"
+                >
+                  <Copy size={12} /> {copiedUrl ? '복사됨 ✓' : '복사'}
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
       )}
 

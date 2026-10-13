@@ -94,6 +94,61 @@ export interface API {
     deleteSimilar: (id: number) => Promise<{ success: boolean; count: number }>
     copyYear: (fromYear: number, toYear: number) => Promise<{ success: boolean; count: number; message?: string }>
   }
+  mobile?: {
+    getStatus: () => Promise<{
+      success: boolean
+      data?: {
+        running: boolean
+        port: number
+        ip: string
+        allIps: string[]
+        token: string
+        url: string
+        qrCode: string
+        connectedClients: number
+      }
+      error?: string
+    }>
+    regenerateToken: () => Promise<{
+      success: boolean
+      data?: {
+        running: boolean
+        port: number
+        ip: string
+        allIps: string[]
+        token: string
+        url: string
+        qrCode: string
+        connectedClients: number
+      }
+      error?: string
+    }>
+    startServer: () => Promise<{ success: boolean; data?: any; error?: string }>
+    stopServer: () => Promise<{ success: boolean; error?: string }>
+    notifyChange: () => Promise<{ success: boolean; error?: string }>
+    onDataChanged: (callback: () => void) => () => void
+  }
+  cloud?: {
+    getStatus: () => Promise<{
+      success: boolean
+      data?: {
+        enabled: boolean
+        key: string | null
+        hostingUrl: string
+        mobileAccessUrl: string | null
+        qrCode: string | null
+        lastSyncTime: string | null
+        lastSyncStatus: string
+        lastSyncError: string | null
+      }
+      error?: string
+    }>
+    enable: () => Promise<{ success: boolean; data?: any; error?: string }>
+    syncNow: () => Promise<{ success: boolean; data?: any; error?: string }>
+    disable: () => Promise<{ success: boolean; data?: any; error?: string }>
+    regenerateKey: () => Promise<{ success: boolean; data?: any; error?: string }>
+    setHostingUrl: (url: string) => Promise<{ success: boolean; data?: any; error?: string }>
+  }
 }
 
 declare global {

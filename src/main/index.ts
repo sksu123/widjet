@@ -6,6 +6,8 @@ import { autoUpdater } from 'electron-updater'
 import { setupTray } from './tray'
 import { setupDatabase } from './db/database'
 import { registerAllHandlers } from './ipc'
+import { startMobileServer, stopMobileServer } from './mobile/mobileServer'
+import { syncCloudNow } from './cloud/cloudSyncManager'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -63,6 +65,16 @@ app.whenReady().then(async () => {
   registerAllHandlers()
 
   createWindow()
+
+  // 모바일 동기화 서버 시작 (PWA)
+  try {
+    await startMobileServer(() => mainWindow)
+  } catch (err) {
+    console.error('Failed to start mobile server:', err)
+  }
+
+  // 외부 클라우드 동기화 (Supabase)
+  syncCloudNow().catch(() => {})
 
   // D-Day 시작 알림
   try {
@@ -146,6 +158,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  stopMobileServer()
 })
 
 // 창 컨트롤 IPC

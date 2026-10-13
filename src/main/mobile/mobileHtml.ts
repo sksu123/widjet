@@ -1,0 +1,1401 @@
+import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC_KEY } from '../cloud/supabaseClient'
+
+export function getManifestJson(): string {
+  return JSON.stringify(
+    {
+      name: '교행 보드 모바일',
+      short_name: '교행보드',
+      description: '학교 행정실 오늘의 일정/할일 및 D-DAY 모바일 연동 앱',
+      start_url: './',
+      display: 'standalone',
+      background_color: '#0f172a',
+      theme_color: '#1e293b',
+      orientation: 'portrait-primary',
+      icons: [
+        {
+          src: './icon.png',
+          sizes: '192x192',
+          type: 'image/png'
+        },
+        {
+          src: './icon.png',
+          sizes: '512x512',
+          type: 'image/png'
+        }
+      ]
+    },
+    null,
+    2
+  )
+}
+
+export function getServiceWorkerJs(): string {
+  return `
+const CACHE_NAME = 'gyoheng-board-v2';
+const STATIC_ASSETS = ['./', './manifest.json', './icon.png'];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => {})
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((k) => {
+          if (k !== CACHE_NAME) return caches.delete(k);
+        })
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (e) => {
+  // API 및 RPC 요청은 네트워크 우선
+  if (e.request.url.includes('/api/') || e.request.url.includes('/rpc/')) {
+    e.respondWith(
+      fetch(e.request).catch(() => {
+        return new Response(JSON.stringify({ error: 'offline', offline: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
+    return;
+  }
+
+  // 정적 리소스는 네트워크 우선, 실패 시 캐시
+  e.respondWith(
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(e.request))
+  );
+});
+
+// 웹푸시 수신 리스너
+self.addEventListener('push', (e) => {
+  let data = { title: '교행 보드 알림', body: '새로운 알림이 도착했습니다.' };
+  try {
+    if (e.data) {
+      data = e.data.json();
+    }
+  } catch (err) {
+    if (e.data) data.body = e.data.text();
+  }
+
+  const options = {
+    body: data.body || '',
+    icon: './icon.png',
+    badge: './icon.png',
+    data: { url: data.url || './' },
+    vibrate: [100, 50, 100]
+  };
+
+  e.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+// 알림 클릭 리스너
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const targetUrl = e.notification.data?.url || './';
+
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if ('focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+`.trim()
+}
+
+export function getMobileHtml(
+  appName = '교행 보드',
+  version = 'v2.0.57',
+  mode: 'lan' | 'cloud' = 'lan'
+): string {
+  const isCloud = mode === 'cloud'
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="${appName}" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./icon.png" />
+  <title>${appName} 모바일</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --accent-purple: #8b5cf6;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --dday-bg: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      --dday-today: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    input, textarea, button {
+      user-select: auto;
+      font-family: inherit;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      min-height: 100vh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: #fff;
+      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+    }
+
+    .brand-text h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-text .version-tag {
+      font-size: 10px;
+      background: #334155;
+      color: #cbd5e1;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 8px;
+      border-radius: 20px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      font-weight: 500;
+    }
+
+    .status-badge.offline {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .pulse {
+      animation: pulseAnim 2s infinite;
+    }
+
+    @keyframes pulseAnim {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .icon-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      transition: all 0.2s;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .icon-btn.active {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #60a5fa;
+    }
+
+    main {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .date-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 4px;
+    }
+
+    .today-date {
+      font-size: 15px;
+      font-weight: 700;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .refresh-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .refresh-btn:active {
+      background: var(--card-bg);
+      color: var(--text-main);
+    }
+
+    /* Section Styles */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-btn {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #60a5fa;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .section-btn:active {
+      background: #3b82f6;
+      color: white;
+    }
+
+    /* D-Day Carousel */
+    .dday-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .dday-scroll::-webkit-scrollbar {
+      height: 4px;
+    }
+    .dday-scroll::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    .dday-card {
+      flex: 0 0 calc(50% - 6px);
+      min-width: 145px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+      position: relative;
+      scroll-snap-align: start;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: transform 0.15s;
+    }
+
+    .dday-card:active {
+      transform: scale(0.98);
+    }
+
+    .dday-tag-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dday-badge {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: white;
+      background: var(--dday-bg);
+      letter-spacing: -0.2px;
+    }
+
+    .dday-badge.today {
+      background: var(--dday-today);
+      animation: pulseAnim 1.5s infinite;
+    }
+
+    .dday-badge.urgent {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .dday-badge.past {
+      background: #475569;
+      color: #cbd5e1;
+    }
+
+    .dday-delete-btn {
+      background: none;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    .dday-delete-btn:active {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .dday-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+      line-height: 1.3;
+      word-break: break-all;
+    }
+
+    .dday-date {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .empty-card {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px dashed var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Tabs */
+    .tab-nav {
+      display: flex;
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 3px;
+      border: 1px solid var(--card-border);
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #334155;
+      color: #f8fafc;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Quick Add Input (LAN 모드 전용) */
+    .quick-add-form {
+      display: flex;
+      gap: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 6px 8px 6px 14px;
+      align-items: center;
+    }
+
+    .quick-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .quick-input::placeholder {
+      color: #64748b;
+    }
+
+    .quick-submit {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .quick-submit:active {
+      background: var(--accent-hover);
+    }
+
+    /* Schedule / Todo List */
+    .todo-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .todo-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .todo-item.completed {
+      opacity: 0.55;
+      background: rgba(30, 41, 59, 0.5);
+    }
+
+    .checkbox-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: 2px solid #64748b;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .checkbox-btn.checked {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .todo-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow: hidden;
+    }
+
+    .todo-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #f1f5f9;
+      word-break: break-all;
+    }
+
+    .todo-item.completed .todo-title {
+      text-decoration: line-through;
+      color: #94a3b8;
+    }
+
+    .todo-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .category-badge {
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: #334155;
+      color: #94a3b8;
+      font-size: 10px;
+    }
+
+    .todo-delete-btn {
+      background: none;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .todo-delete-btn:active {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    /* Admin Schedule Cards */
+    .admin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-left: 4px solid var(--accent-purple);
+    }
+
+    .admin-card.deadline {
+      border-left-color: var(--danger);
+    }
+
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .admin-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .deadline-badge {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 20px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .form-input {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: white;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .form-input:focus {
+      border-color: var(--accent);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-cancel {
+      background: #334155;
+      color: #cbd5e1;
+    }
+
+    .btn-save {
+      background: var(--accent);
+      color: white;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid var(--card-border);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 12px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      z-index: 200;
+      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">교</div>
+      <div class="brand-text">
+        <h1>${appName} <span class="version-tag">${isCloud ? '클라우드' : version}</span></h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      ${
+        isCloud
+          ? `<button class="icon-btn" id="pushNotifyBtn" title="웹푸시 알림 켜기">🔔</button>`
+          : ''
+      }
+      <div id="statusBadge" class="status-badge">
+        <span class="dot pulse"></span>
+        <span id="statusText">연결 중</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- 날짜 바 -->
+    <div class="date-bar">
+      <div class="today-date" id="todayDateStr">
+        📅 오늘 일정
+      </div>
+      <button class="refresh-btn" id="refreshBtn" title="새로고침">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- D-DAY 섹션 -->
+    <section>
+      <div class="section-header">
+        <div class="section-title">
+          <span>🚩</span>
+          <span>중요 D-DAY</span>
+          <span id="ddayCount" style="font-size: 11px; color: var(--text-muted); font-weight: 500;"></span>
+        </div>
+        ${!isCloud ? `<button class="section-btn" id="openDdayModalBtn">+ D-DAY 등록</button>` : ''}
+      </div>
+
+      <div class="dday-scroll" id="ddayContainer">
+        <!-- D-DAY 카드 목록 동적 렌더링 -->
+      </div>
+    </section>
+
+    <!-- 일정 및 할일 섹션 -->
+    <section>
+      <div class="section-header">
+        <div class="section-title">
+          <span>📝</span>
+          <span>오늘의 업무 & 할일</span>
+          <span id="todoStats" style="font-size: 11px; color: var(--text-muted); font-weight: 500;"></span>
+        </div>
+      </div>
+
+      <!-- 탭 -->
+      <div class="tab-nav">
+        <button class="tab-btn active" id="tabTodo">오늘의 할일</button>
+        <button class="tab-btn" id="tabAdmin">행정실 일정</button>
+      </div>
+
+      <!-- 탭 1: 오늘의 할일 -->
+      <div id="todoSection" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+        ${
+          !isCloud
+            ? `
+        <!-- 빠른 추가 입력창 (LAN 모드) -->
+        <form class="quick-add-form" id="quickAddForm">
+          <input type="text" class="quick-input" id="quickTodoInput" placeholder="오늘 할 일을 입력하세요..." maxlength="100" />
+          <button type="submit" class="quick-submit">추가</button>
+        </form>
+        `
+            : ''
+        }
+
+        <div class="todo-list" id="todoList">
+          <!-- 할일 아이템 동적 렌더링 -->
+        </div>
+      </div>
+
+      <!-- 탭 2: 행정실 일정 -->
+      <div id="adminSection" style="display: none; flex-direction: column; gap: 8px; margin-top: 10px;">
+        <div class="todo-list" id="adminList">
+          <!-- 행정실 일정 렌더링 -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  ${
+    !isCloud
+      ? `
+  <!-- D-DAY 추가 모달 (LAN 모드) -->
+  <div class="modal-backdrop" id="ddayModal">
+    <div class="modal-content">
+      <div class="modal-title">새 D-DAY 등록</div>
+      <form class="modal-form" id="ddayForm">
+        <div class="form-group">
+          <label class="form-label">D-DAY 제목</label>
+          <input type="text" class="form-input" id="ddayTitleInput" placeholder="예: 급여일, 정산 마감, 분기 보고" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">목표 날짜</label>
+          <input type="date" class="form-input" id="ddayDateInput" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="closeDdayModalBtn">취소</button>
+          <button type="submit" class="btn-save">등록하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  `
+      : ''
+  }
+
+  <!-- 토스트 메시지 -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const IS_CLOUD = ${isCloud ? 'true' : 'false'};
+    const SUPABASE_URL = '${SUPABASE_URL}';
+    const SUPABASE_ANON_KEY = '${SUPABASE_ANON_KEY}';
+    const VAPID_PUBLIC_KEY = '${VAPID_PUBLIC_KEY}';
+
+    // PWA Service Worker 등록
+    let swReg = null;
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        swReg = reg;
+        checkPushSubscription();
+      }).catch(console.error);
+    }
+
+    // 보안 키/토큰 추출
+    let cloudKey = '';
+    let lanToken = '';
+
+    if (IS_CLOUD) {
+      // 1) URL 해시 (#key=...) 확인
+      const hash = window.location.hash || '';
+      const match = hash.match(/key=([^&]+)/);
+      if (match && match[1]) {
+        cloudKey = decodeURIComponent(match[1]);
+        localStorage.setItem('gyoheng_cloud_key', cloudKey);
+        // URL에서 해시 제거하여 히스토리 정리
+        history.replaceState(null, '', window.location.pathname);
+      } else {
+        cloudKey = localStorage.getItem('gyoheng_cloud_key') || '';
+      }
+    } else {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get('token');
+      if (tokenFromUrl) {
+        localStorage.setItem('gyoheng_token', tokenFromUrl);
+      }
+      lanToken = localStorage.getItem('gyoheng_token') || '';
+    }
+
+    // 상태 관리
+    let appState = {
+      today: '',
+      schedules: [],
+      ddays: [],
+      adminSchedules: [],
+      isConnected: false
+    };
+
+    let activeTab = 'todo';
+
+    // DOM 요소
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const todayDateStr = document.getElementById('todayDateStr');
+    const ddayContainer = document.getElementById('ddayContainer');
+    const ddayCount = document.getElementById('ddayCount');
+    const todoList = document.getElementById('todoList');
+    const todoStats = document.getElementById('todoStats');
+    const adminList = document.getElementById('adminList');
+    const tabTodo = document.getElementById('tabTodo');
+    const tabAdmin = document.getElementById('tabAdmin');
+    const todoSection = document.getElementById('todoSection');
+    const adminSection = document.getElementById('adminSection');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const toast = document.getElementById('toast');
+    const pushNotifyBtn = document.getElementById('pushNotifyBtn');
+
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function updateConnectionStatus(connected) {
+      appState.isConnected = connected;
+      if (connected) {
+        statusBadge.className = 'status-badge';
+        statusText.textContent = IS_CLOUD ? '클라우드 연동' : '실시간 연동';
+      } else {
+        statusBadge.className = 'status-badge offline';
+        statusText.textContent = '오프라인';
+      }
+    }
+
+    // 데이터 불러오기
+    async function loadData() {
+      if (IS_CLOUD) {
+        if (!cloudKey) {
+          updateConnectionStatus(false);
+          showToast('연동 키가 없습니다. PC 설정의 QR 코드를 스캔해주세요.');
+          return;
+        }
+
+        try {
+          const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_snapshot', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({ p_key: cloudKey })
+          });
+
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+
+          if (data && data.payload) {
+            appState.today = data.payload.today || '';
+            appState.schedules = data.payload.schedules || [];
+            appState.ddays = data.payload.ddays || [];
+            appState.adminSchedules = data.payload.adminSchedules || [];
+
+            localStorage.setItem('cached_gyoheng_cloud', JSON.stringify(appState));
+            updateConnectionStatus(true);
+            render();
+          } else {
+            showToast('등록된 일정이 아직 없거나 키가 만료되었습니다.');
+            updateConnectionStatus(false);
+          }
+        } catch (err) {
+          console.warn('클라우드 조회 실패, 캐시 사용', err);
+          updateConnectionStatus(false);
+          loadCachedData('cached_gyoheng_cloud');
+        }
+      } else {
+        // LAN 모드
+        try {
+          const res = await fetch('/api/data?token=' + encodeURIComponent(lanToken));
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const json = await res.json();
+          if (json.success) {
+            appState.today = json.today || '';
+            appState.schedules = json.schedules || [];
+            appState.ddays = json.ddays || [];
+            appState.adminSchedules = json.adminSchedules || [];
+
+            localStorage.setItem('cached_gyoheng_lan', JSON.stringify(appState));
+            updateConnectionStatus(true);
+            render();
+          }
+        } catch (err) {
+          updateConnectionStatus(false);
+          loadCachedData('cached_gyoheng_lan');
+        }
+      }
+    }
+
+    function loadCachedData(cacheKey) {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          appState.today = parsed.today || '';
+          appState.schedules = parsed.schedules || [];
+          appState.ddays = parsed.ddays || [];
+          appState.adminSchedules = parsed.adminSchedules || [];
+          render();
+        } catch(e) {}
+      }
+    }
+
+    // 렌더링
+    function render() {
+      if (appState.today) {
+        const parts = appState.today.split('-');
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        const dayStr = days[dateObj.getDay()];
+        todayDateStr.textContent = '📅 ' + parts[0] + '년 ' + parts[1] + '월 ' + parts[2] + '일 (' + dayStr + ')';
+      }
+
+      renderDdays();
+      renderTodos();
+      renderAdminSchedules();
+    }
+
+    function renderDdays() {
+      ddayContainer.innerHTML = '';
+      const list = appState.ddays;
+      ddayCount.textContent = list.length > 0 ? '(' + list.length + '개)' : '';
+
+      if (list.length === 0) {
+        ddayContainer.innerHTML = '<div class="empty-card">등록된 D-DAY가 없습니다.</div>';
+        return;
+      }
+
+      list.forEach(d => {
+        const card = document.createElement('div');
+        card.className = 'dday-card';
+
+        let badgeClass = 'dday-badge';
+        let badgeText = '';
+        if (d.daysLeft === 0) {
+          badgeClass += ' today';
+          badgeText = 'D-DAY';
+        } else if (d.daysLeft > 0) {
+          if (d.daysLeft <= 3) badgeClass += ' urgent';
+          badgeText = 'D-' + d.daysLeft;
+        } else {
+          badgeClass += ' past';
+          badgeText = 'D+' + Math.abs(d.daysLeft);
+        }
+
+        const deleteHtml = !IS_CLOUD ? \`<button class=\"dday-delete-btn\" title=\"삭제\" data-id=\"\${d.id}\">✕</button>\` : '';
+
+        card.innerHTML = \`
+          <div class=\"dday-tag-row\">
+            <span class=\"\${badgeClass}\">\${badgeText}</span>
+            \${deleteHtml}
+          </div>
+          <div class=\"dday-title\">\${escapeHtml(d.title)}</div>
+          <div class=\"dday-date\">\${d.targetDate}</div>
+        \`;
+
+        if (!IS_CLOUD) {
+          card.querySelector('.dday-delete-btn')?.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (confirm(d.title + ' D-DAY를 삭제하시겠습니까?')) {
+              await fetch('/api/ddays/' + d.id + '?token=' + encodeURIComponent(lanToken), { method: 'DELETE' });
+              showToast('D-DAY가 삭제되었습니다.');
+              loadData();
+            }
+          });
+        }
+
+        ddayContainer.appendChild(card);
+      });
+    }
+
+    function renderTodos() {
+      todoList.innerHTML = '';
+      const list = appState.schedules;
+      const completedCount = list.filter(s => s.is_completed === 1).length;
+      todoStats.textContent = list.length > 0 ? '(' + completedCount + '/' + list.length + ' 완료)' : '';
+
+      if (list.length === 0) {
+        todoList.innerHTML = '<div class="empty-card" style="padding: 30px;">오늘 등록된 일정이 없습니다. ✨</div>';
+        return;
+      }
+
+      list.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'todo-item' + (item.is_completed === 1 ? ' completed' : '');
+        const isChecked = item.is_completed === 1;
+
+        const checkHtml = !IS_CLOUD
+          ? \`<button class=\"checkbox-btn \${isChecked ? 'checked' : ''}\" data-id=\"\${item.id}\">
+              \${isChecked ? '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"3\"><polyline points=\"20 6 9 17 4 12\"/></svg>' : ''}
+            </button>\`
+          : \`<div class=\"checkbox-btn \${isChecked ? 'checked' : ''}\" style=\"cursor: default;\">
+              \${isChecked ? '<svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"white\" stroke-width=\"3\"><polyline points=\"20 6 9 17 4 12\"/></svg>' : ''}
+            </div>\`;
+
+        const deleteHtml = !IS_CLOUD
+          ? \`<button class=\"todo-delete-btn\" data-id=\"\${item.id}\" title=\"삭제\">
+              <svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polyline points=\"3 6 5 6 21 6\"/><path d=\"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/></svg>
+            </button>\`
+          : '';
+
+        row.innerHTML = \`
+          \${checkHtml}
+          <div class=\"todo-content\">
+            <div class=\"todo-title\">\${escapeHtml(item.title)}</div>
+            <div class=\"todo-meta\">
+              <span class=\"category-badge\">\${getCategoryName(item.category)}</span>
+            </div>
+          </div>
+          \${deleteHtml}
+        \`;
+
+        if (!IS_CLOUD) {
+          row.querySelector('.checkbox-btn')?.addEventListener('click', async () => {
+            const nextStatus = isChecked ? 0 : 1;
+            await fetch('/api/schedules/' + item.id + '/toggle?token=' + encodeURIComponent(lanToken), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_completed: nextStatus })
+            });
+            item.is_completed = nextStatus;
+            renderTodos();
+          });
+
+          row.querySelector('.todo-delete-btn')?.addEventListener('click', async () => {
+            if (confirm('이 할 일을 삭제하시겠습니까?')) {
+              await fetch('/api/schedules/' + item.id + '?token=' + encodeURIComponent(lanToken), { method: 'DELETE' });
+              showToast('삭제되었습니다.');
+              loadData();
+            }
+          });
+        }
+
+        todoList.appendChild(row);
+      });
+    }
+
+    function renderAdminSchedules() {
+      adminList.innerHTML = '';
+      const list = appState.adminSchedules;
+      if (list.length === 0) {
+        adminList.innerHTML = '<div class="empty-card" style="padding: 24px;">오늘 예정된 학교 행정 일정이 없습니다.</div>';
+        return;
+      }
+
+      list.forEach(a => {
+        const item = document.createElement('div');
+        item.className = 'admin-card' + (a.is_deadline ? ' deadline' : '');
+        item.innerHTML = \`
+          <div class="admin-header">
+            <span style="font-size: 11px; color: var(--text-muted);">\${escapeHtml(a.category || '행정')}</span>
+            \${a.is_deadline ? '<span class="deadline-badge">마감일</span>' : ''}
+          </div>
+          <div class="admin-title">\${escapeHtml(a.title)}</div>
+        \`;
+        adminList.appendChild(item);
+      });
+    }
+
+    function getCategoryName(cat) {
+      const map = { general: '일반', event: '행사', exam: '시험', meeting: '회의', finance: '재무', holiday: '휴무' };
+      return map[cat] || '일반';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // 탭 전환
+    tabTodo.addEventListener('click', () => {
+      activeTab = 'todo';
+      tabTodo.classList.add('active');
+      tabAdmin.classList.remove('active');
+      todoSection.style.display = 'flex';
+      adminSection.style.display = 'none';
+    });
+
+    tabAdmin.addEventListener('click', () => {
+      activeTab = 'admin';
+      tabAdmin.classList.add('active');
+      tabTodo.classList.remove('active');
+      adminSection.style.display = 'flex';
+      todoSection.style.display = 'none';
+    });
+
+    // 새로고침
+    refreshBtn.addEventListener('click', () => {
+      refreshBtn.style.transform = 'rotate(180deg)';
+      refreshBtn.style.transition = 'transform 0.4s';
+      setTimeout(() => {
+        refreshBtn.style.transform = 'none';
+        refreshBtn.style.transition = 'none';
+      }, 400);
+      loadData();
+      showToast('새로고침 완료');
+    });
+
+    // 웹푸시 구독 처리 (클라우드 모드)
+    async function checkPushSubscription() {
+      if (!IS_CLOUD || !swReg || !('PushManager' in window)) return;
+      try {
+        const sub = await swReg.pushManager.getSubscription();
+        if (sub && pushNotifyBtn) {
+          pushNotifyBtn.classList.add('active');
+          pushNotifyBtn.title = '웹푸시 알림 활성화됨';
+        }
+      } catch (e) {}
+    }
+
+    if (pushNotifyBtn) {
+      pushNotifyBtn.addEventListener('click', async () => {
+        if (!('Notification' in window) || !('PushManager' in window)) {
+          alert('이 브라우저는 웹푸시 알림을 지원하지 않습니다.');
+          return;
+        }
+
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          showToast('알림 권한이 거부되었습니다.');
+          return;
+        }
+
+        if (!swReg) {
+          showToast('서비스 워커 준비 중입니다. 잠시 후 다시 시도해주세요.');
+          return;
+        }
+
+        try {
+          const rawSub = await swReg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+          });
+
+          const subJson = rawSub.toJSON();
+          const endpoint = subJson.endpoint;
+          const p256dh = subJson.keys?.p256dh;
+          const auth = subJson.keys?.auth;
+
+          if (!endpoint || !p256dh || !auth) throw new Error('구독 키 누락');
+
+          // Supabase RPC: register_push
+          const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/register_push', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({
+              p_key: cloudKey,
+              p_endpoint: endpoint,
+              p_p256dh: p256dh,
+              p_auth: auth
+            })
+          });
+
+          if (!res.ok) throw new Error('서버 등록 실패: ' + res.status);
+
+          pushNotifyBtn.classList.add('active');
+          showToast('🔔 알림이 성공적으로 설정되었습니다!');
+        } catch (err) {
+          console.error('Push subscription failed:', err);
+          showToast('알림 등록 실패: ' + err.message);
+        }
+      });
+    }
+
+    function urlB64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/\\-/g, '+').replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    // SSE 연결 (LAN 모드 전용)
+    if (!IS_CLOUD) {
+      let eventSource = null;
+      function connectSSE() {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource('/api/events?token=' + encodeURIComponent(lanToken));
+        eventSource.onopen = () => updateConnectionStatus(true);
+        eventSource.onmessage = (e) => {
+          if (e.data === 'change') loadData();
+        };
+        eventSource.onerror = () => {
+          updateConnectionStatus(false);
+          eventSource.close();
+          setTimeout(connectSSE, 4000);
+        };
+      }
+      connectSSE();
+    }
+
+    // 초기 로드
+    loadData();
+  </script>
+</body>
+</html>
+`
+}

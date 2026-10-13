@@ -6,6 +6,8 @@ import { registerAdminCalendarHandlers } from './admin_calendar.handler'
 
 import { registerSystemHandlers } from './system.handler'
 import { setupRuleAiHandlers } from './rule_ai.handler'
+import { registerMobileHandlers } from './mobile.handler'
+import { registerCloudHandlers } from './cloud.handler'
 
 export function registerAllHandlers(): void {
   registerAiHandlers()
@@ -15,4 +17,6 @@ export function registerAllHandlers(): void {
   registerAdminCalendarHandlers()
   registerSystemHandlers()
   setupRuleAiHandlers()
+  registerMobileHandlers()
+  registerCloudHandlers()
 }

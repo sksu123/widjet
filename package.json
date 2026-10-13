@@ -1,16 +1,17 @@
 {
   "name": "school-admin-widget",
-  "version": "2.0.57",
+  "version": "2.0.58",
   "description": "학교 행정실 AI 데스크톱 위젯",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && npm run build:mobile-web",
     "preview": "electron-vite preview",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "build:mobile-web": "npx tsx scripts/build-mobile-web.mjs"
   },
   "keywords": [
     "electron",
@@ -30,6 +31,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@google/generative-ai": "^0.21.0",
     "@ssabrojs/hwpxjs": "^0.4.0",
+    "@types/qrcode": "^1.5.6",
     "axios": "^1.20.0",
     "better-sqlite3": "^11.1.2",
     "cheerio": "^1.2.0",
@@ -42,6 +44,7 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^3.11.174",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",

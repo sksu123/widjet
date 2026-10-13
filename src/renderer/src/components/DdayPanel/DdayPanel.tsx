@@ -18,6 +18,14 @@ export default function DdayPanel({ onDdayChange }: { onDdayChange?: () => void 
 
   useEffect(() => {
     loadDdays()
+    if (window.api && (window.api as any).mobile?.onDataChanged) {
+      const unsub = (window.api as any).mobile.onDataChanged(() => {
+        loadDdays()
+      })
+      return () => {
+        if (typeof unsub === 'function') unsub()
+      }
+    }
   }, [])
 
   const loadDdays = async () => {
@@ -38,6 +46,9 @@ export default function DdayPanel({ onDdayChange }: { onDdayChange?: () => void 
     setDdays(newList)
     if (window.api && window.api.db && window.api.db.updateSetting) {
       await window.api.db.updateSetting('custom_ddays', JSON.stringify(newList))
+    }
+    if (window.api && (window.api as any).mobile?.notifyChange) {
+      (window.api as any).mobile.notifyChange()
     }
   }
 
