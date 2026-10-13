@@ -169,7 +169,9 @@ const api = {
     },
     onUpdateDownloaded: (callback: (info: any) => void) => {
       ipcRenderer.on('updater:update-downloaded', (_, info) => callback(info))
-    }
+    },
+    getReleaseNotes: () => ipcRenderer.invoke('updater:get-release-notes'),
+    openUrl: (url: string) => ipcRenderer.invoke('updater:open-url', url)
   },
 
   // 모바일 연동 (PWA)

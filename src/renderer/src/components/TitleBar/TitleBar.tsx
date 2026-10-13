@@ -118,9 +118,16 @@ export default function TitleBar() {
               : `✅ v${updateBanner.version} 다운로드 완료 — 프로그램 종료 시 자동 설치됩니다.`}
           </span>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/settings?tab=version')}
+              className="px-2 py-0.5 rounded text-[10px] font-medium transition-colors"
+              style={{ background: 'rgba(59,130,246,0.2)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)' }}
+            >
+              업데이트 내용
+            </button>
             {updateBanner.type === 'downloaded' && (
               <button
-                onClick={() => navigate('/settings')}
+                onClick={() => navigate('/settings?tab=version')}
                 className="px-2 py-0.5 rounded text-[10px] font-semibold transition-colors"
                 style={{ background: 'rgba(34,197,94,0.2)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' }}
               >

@@ -149,6 +149,32 @@ export interface API {
     regenerateKey: () => Promise<{ success: boolean; data?: any; error?: string }>
     setHostingUrl: (url: string) => Promise<{ success: boolean; data?: any; error?: string }>
   }
+  updater?: {
+    checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>
+    onUpdateAvailable: (callback: (info: any) => void) => void
+    onUpdateNotAvailable: (callback: () => void) => void
+    onError: (callback: (err: string) => void) => void
+    downloadUpdate: () => Promise<any>
+    quitAndInstall: () => Promise<void>
+    onDownloadProgress: (callback: (progress: any) => void) => void
+    onUpdateDownloaded: (callback: (info: any) => void) => void
+    getReleaseNotes: () => Promise<{
+      success: boolean
+      data?: ReleaseNoteItem[]
+      error?: string
+      isFallback?: boolean
+    }>
+    openUrl: (url: string) => Promise<{ success: boolean; error?: string }>
+  }
+}
+
+export interface ReleaseNoteItem {
+  tagName: string
+  name: string
+  body: string
+  publishedAt: string
+  htmlUrl: string
+  isPrerelease?: boolean
 }
 
 declare global {

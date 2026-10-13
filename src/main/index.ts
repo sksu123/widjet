@@ -8,6 +8,7 @@ import { setupDatabase } from './db/database'
 import { registerAllHandlers } from './ipc'
 import { startMobileServer, stopMobileServer } from './mobile/mobileServer'
 import { syncCloudNow } from './cloud/cloudSyncManager'
+import axios from 'axios'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -185,8 +186,8 @@ ipcMain.handle('updater:check', async () => {
     return { success: false, error: '개발 환경에서는 업데이트를 확인할 수 없습니다.' }
   }
   try {
-    await autoUpdater.checkForUpdates()
-    return { success: true }
+    const result = await autoUpdater.checkForUpdates()
+    return { success: true, updateInfo: result?.updateInfo }
   } catch (err: any) {
     return { success: false, error: err.message }
   }
@@ -194,4 +195,69 @@ ipcMain.handle('updater:check', async () => {
 
 ipcMain.handle('updater:install', () => {
   autoUpdater.quitAndInstall(true, true)
+})
+
+// GitHub Releases API로부터 릴리스 노트 목록 조회
+ipcMain.handle('updater:get-release-notes', async () => {
+  try {
+    const res = await axios.get('https://api.github.com/repos/sksu123/widjet/releases', {
+      timeout: 7000,
+      headers: {
+        'User-Agent': 'SchoolAdminWidget',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    })
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      const releases = res.data.slice(0, 10).map((r: any) => ({
+        tagName: r.tag_name || '',
+        name: r.name || r.tag_name || '',
+        body: r.body || '',
+        publishedAt: r.published_at || '',
+        htmlUrl: r.html_url || '',
+        isPrerelease: !!r.prerelease
+      }))
+      return { success: true, data: releases }
+    }
+  } catch (err: any) {
+    console.warn('GitHub API release notes fetch failed:', err.message)
+  }
+
+  // API 호출 실패 시 (네트워크 오류, rate limit, 아직 릴리스 생성 전 등) 최신 릴리스 기본 fallback 제공
+  const fallback = [
+    {
+      tagName: 'v2.0.58',
+      name: '교행 보드 v2.0.58 - 외부 네트워크 모바일 연동 & 릴리스 노트 조회',
+      publishedAt: new Date().toISOString(),
+      htmlUrl: 'https://github.com/sksu123/widjet/releases',
+      body: `### 🌟 v2.0.58 주요 업데이트 내역
+
+#### 1. 📱 외부 네트워크 모바일 연동 지원 (Supabase + PWA)
+- 학교 내부망 PC와 집/모바일(LTE/다른 Wi-Fi) 간의 실시간 일정 및 D-DAY 조회 지원
+- 48자리 무작위 보안 토큰과 SHA-256 해시 검증을 통한 안전한 클라우드 스냅샷 동기화
+- 일정, D-DAY, 행정달력 마감일 데이터 60일치 자동 동기화 (2초 디바운스)
+
+#### 2. 🔔 모바일 웹푸시 알림 지원
+- D-DAY 알림: D-3일 오전 8시, 당일 오전 8시 푸시 발송
+- 오늘 일정/할일 요약 알림: 매일 아침 8시 KST 자동 푸시
+- 행정달력 마감일 알림 발송
+
+#### 3. 🌐 GitHub Pages 기반 모바일 웹앱 배포
+- \`docs/\` 폴더를 통한 무설치 모바일 PWA 배포
+- 스마트폰 브라우저에서 '홈 화면에 추가'로 앱처럼 바로 사용 가능
+
+#### 4. 📋 앱 내 버전 업데이트 및 GitHub Release Notes 열람 기능
+- 업데이트 확인 시 GitHub 릴리스 노트를 앱 내에서 바로 확인할 수 있는 뷰어 추가
+- 이전 릴리스 내역 확인 및 릴리스 노트 텍스트 복사 기능 지원`
+    }
+  ]
+  return { success: true, data: fallback, isFallback: true }
+})
+
+// 외부 URL 열기
+ipcMain.handle('updater:open-url', async (_, url: string) => {
+  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+    await shell.openExternal(url)
+    return { success: true }
+  }
+  return { success: false, error: '유효하지 않은 URL입니다.' }
 })

@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, User, Database, RefreshCw, Search, Building2, Check, X, Cloud, MapPin, Edit2, Download, Smartphone, Copy, Wifi, ShieldCheck, ExternalLink, QrCode, Globe, Bell, CheckCircle2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Settings as SettingsIcon, Save, User, Database, RefreshCw, Search, Building2, Check, X, Cloud, MapPin, Edit2, Download, Smartphone, Copy, Wifi, ShieldCheck, ExternalLink, QrCode, Globe, Bell, CheckCircle2, FileText, Sparkles, ExternalLink as ExtLink } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { ReleaseNoteItem } from '../../types/api'
 import { RegionSelector } from '../../components/RegionSelector'
 
 export default function Settings() {
+  const [searchParams] = useSearchParams()
   const [settings, setSettings] = useState<Record<string, string>>({})
   const [user, setUser] = useState({ name: '', school_name: '', department: '', email: '', avatar_color: '#3b82f6' })
   const [saved, setSaved] = useState(false)
@@ -21,7 +26,13 @@ export default function Settings() {
   // 업데이트 상태: 'idle' | 'checking' | 'latest' | 'available' | 'error'
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available' | 'error' | 'downloaded'>('idle')
   const [updateInfo, setUpdateInfo] = useState<string>('')
-  const [appVersion, setAppVersion] = useState('v2.0.53')
+  const [appVersion, setAppVersion] = useState('v2.0.58')
+  // 릴리스 노트 상태
+  const [releases, setReleases] = useState<ReleaseNoteItem[]>([])
+  const [selectedReleaseIndex, setSelectedReleaseIndex] = useState(0)
+  const [loadingReleases, setLoadingReleases] = useState(false)
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false)
+  const [copiedReleaseNote, setCopiedReleaseNote] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -30,7 +41,40 @@ export default function Settings() {
   // 날씨 지역 변경 상태
   const [showRegionSelector, setShowRegionSelector] = useState(false)
 
-  useEffect(() => { 
+    async function loadReleaseNotes() {
+    setLoadingReleases(true)
+    try {
+      if ((window.api as any)?.updater?.getReleaseNotes) {
+        const res = await (window.api as any).updater.getReleaseNotes()
+        if (res && res.success && res.data && res.data.length > 0) {
+          setReleases(res.data)
+          setShowReleaseNotes(true)
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load release notes:', e)
+    } finally {
+      setLoadingReleases(false)
+    }
+  }
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['general', 'school', 'mobile', 'api', 'weather', 'user', 'data', 'version'].includes(tab)) {
+      setActiveTab(tab as any)
+      if (tab === 'version') {
+        loadReleaseNotes()
+      }
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    if (activeTab === 'version' && releases.length === 0) {
+      loadReleaseNotes()
+    }
+  }, [activeTab])
+
+useEffect(() => { 
     loadData()
     loadMobileStatus()
     loadCloudStatus()
@@ -905,72 +949,233 @@ export default function Settings() {
         </div>
       )}
       {activeTab === 'version' && (
-        <div className="card space-y-5">
+        <div className="card space-y-6">
           {/* ===== 버전 정보 ===== */}
-          <div>
-            <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>버전 정보</h3>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>교행 보드 {appVersion}</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Electron + React + Gemini AI</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>교행 보드</h3>
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                  {appVersion}
+                </span>
+              </div>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                학교 행정실 업무 보조 올인원 데스크톱 위젯 (Electron + React + Gemini AI)
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                if ((window.api as any)?.updater?.openUrl) {
+                  (window.api as any).updater.openUrl('https://github.com/sksu123/widjet/releases')
+                } else {
+                  window.open('https://github.com/sksu123/widjet/releases', '_blank')
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: 'rgba(100,116,139,0.1)',
+                color: 'var(--text-muted)',
+                border: '1px solid rgba(100,116,139,0.2)'
+              }}
+            >
+              <ExtLink size={12} />
+              GitHub 저장소
+            </button>
           </div>
 
           <div className="divider" />
 
           {/* ===== 업데이트 확인 ===== */}
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between">
               <div>
-                <label className="label">업데이트</label>
+                <label className="label">업데이트 확인</label>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {updateStatus === 'idle' && '업데이트 확인 버튼을 눌러 최신 버전을 확인하세요.'}
+                  {updateStatus === 'idle' && '업데이트 확인 버튼을 눌러 최신 버전이 있는지 확인하세요.'}
                   {updateStatus === 'checking' && '⏳ 업데이트를 확인 중입니다...'}
-                  {updateStatus === 'latest' && '✓ 최신 버전을 사용 중입니다.'}
-                  {updateStatus === 'available' && `🔔 새 버전이 있습니다! ${updateInfo} - 자동 다운로드 중...`}
-                  {updateStatus === 'downloaded' && `✅ 버전 ${updateInfo} 준비됨 - 잠시 후 팝업창을 확인하세요.`}
+                  {updateStatus === 'latest' && '✓ 현재 최신 버전을 사용 중입니다.'}
+                  {updateStatus === 'available' && `🔔 새 버전이 발견되었습니다! (${updateInfo}) - 자동 다운로드 중...`}
+                  {updateStatus === 'downloaded' && `✅ 새 버전(${updateInfo}) 다운로드 완료! 프로그램을 재시작하면 자동 설치됩니다.`}
                   {updateStatus === 'error' && `❌ 확인 실패: ${updateInfo}`}
                 </p>
               </div>
-              <button
-                onClick={async () => {
-                  setUpdateStatus('checking')
-                  setUpdateInfo('')
-                  // 이벤트 리스너 등록 (중복 방지를 위해 한 번만)
-                  if ((window.api as any).updater) {
-                    ;(window.api as any).updater.onUpdateAvailable((info: any) => {
-                      setUpdateStatus('available')
-                      setUpdateInfo(info.version || '')
-                    })
-                    ;(window.api as any).updater.onUpdateNotAvailable(() => {
-                      setUpdateStatus('latest')
-                    })
-                    ;(window.api as any).updater.onError((err: string) => {
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    setUpdateStatus('checking')
+                    setUpdateInfo('')
+                    loadReleaseNotes()
+
+                    if ((window.api as any).updater) {
+                      ;(window.api as any).updater.onUpdateAvailable((info: any) => {
+                        setUpdateStatus('available')
+                        setUpdateInfo(info.version || '')
+                        setShowReleaseNotes(true)
+                      })
+                      ;(window.api as any).updater.onUpdateNotAvailable(() => {
+                        setUpdateStatus('latest')
+                        setShowReleaseNotes(true)
+                      })
+                      ;(window.api as any).updater.onError((err: string) => {
+                        setUpdateStatus('error')
+                        setUpdateInfo(err)
+                      })
+                      ;(window.api as any).updater.onUpdateDownloaded((info: any) => {
+                        setUpdateStatus('downloaded')
+                        setUpdateInfo(info.version || '')
+                        setShowReleaseNotes(true)
+                      })
+                      const res = await (window.api as any).updater.checkForUpdates()
+                      if (res && res.success === false && res.error) {
+                        setUpdateStatus('error')
+                        setUpdateInfo(res.error)
+                      }
+                    } else {
                       setUpdateStatus('error')
-                      setUpdateInfo(err)
-                    })
-                    ;(window.api as any).updater.onUpdateDownloaded((info: any) => {
-                      setUpdateStatus('downloaded')
-                      setUpdateInfo(info.version || '')
-                    })
-                    await (window.api as any).updater.checkForUpdates()
-                  } else {
-                    setUpdateStatus('error')
-                    setUpdateInfo('업데이트 기능을 사용할 수 없습니다.')
-                  }
-                }}
-                disabled={updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  background: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'rgba(100,116,139,0.1)' : 'rgba(59,130,246,0.1)',
-                  color: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'var(--text-muted)' : '#60a5fa',
-                  border: '1px solid',
-                  borderColor: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'rgba(100,116,139,0.2)' : 'rgba(59,130,246,0.2)',
-                  opacity: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 0.7 : 1,
-                  cursor: (updateStatus === 'checking' || updateStatus === 'available' || updateStatus === 'downloaded') ? 'not-allowed' : 'pointer'
-                }}
-              >
-                <RefreshCw size={12} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
-                업데이트 확인
-              </button>
+                      setUpdateInfo('업데이트 기능을 사용할 수 없습니다.')
+                    }
+                  }}
+                  disabled={updateStatus === 'checking' || updateStatus === 'available'}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: (updateStatus === 'checking' || updateStatus === 'available') ? 'rgba(100,116,139,0.1)' : 'rgba(59,130,246,0.1)',
+                    color: (updateStatus === 'checking' || updateStatus === 'available') ? 'var(--text-muted)' : '#60a5fa',
+                    border: '1px solid',
+                    borderColor: (updateStatus === 'checking' || updateStatus === 'available') ? 'rgba(100,116,139,0.2)' : 'rgba(59,130,246,0.2)',
+                    opacity: (updateStatus === 'checking' || updateStatus === 'available') ? 0.7 : 1,
+                    cursor: (updateStatus === 'checking' || updateStatus === 'available') ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  <RefreshCw size={12} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
+                  업데이트 확인
+                </button>
+
+                {updateStatus === 'downloaded' && (
+                  <button
+                    onClick={() => {
+                      if ((window.api as any).updater?.quitAndInstall) {
+                        (window.api as any).updater.quitAndInstall()
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-sm"
+                  >
+                    <Download size={12} />
+                    지금 재시작하여 설치
+                  </button>
+                )}
+              </div>
             </div>
+          </div>
+
+          <div className="divider" />
+
+          {/* ===== GitHub Release Notes (업데이트 상세 내역) ===== */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-amber-400" />
+                <h4 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  GitHub 릴리스 노트 (업데이트 내역)
+                </h4>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {releases.length > 1 && (
+                  <select
+                    value={selectedReleaseIndex}
+                    onChange={(e) => setSelectedReleaseIndex(Number(e.target.value))}
+                    className="input text-xs py-1 px-2 h-7"
+                    style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                  >
+                    {releases.map((rel, idx) => (
+                      <option key={idx} value={idx}>
+                        {rel.tagName || rel.name} {idx === 0 ? '(최신)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                <button
+                  onClick={() => {
+                    const current = releases[selectedReleaseIndex]
+                    if (current && current.body) {
+                      navigator.clipboard.writeText(current.body)
+                      setCopiedReleaseNote(true)
+                      setTimeout(() => setCopiedReleaseNote(false), 2000)
+                    }
+                  }}
+                  disabled={releases.length === 0}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors"
+                  style={{
+                    background: 'rgba(100,116,139,0.15)',
+                    color: copiedReleaseNote ? '#4ade80' : 'var(--text-muted)',
+                    border: '1px solid rgba(100,116,139,0.25)'
+                  }}
+                  title="릴리스 노트 마크다운 내용 복사"
+                >
+                  {copiedReleaseNote ? <Check size={12} /> : <Copy size={12} />}
+                  <span>{copiedReleaseNote ? '복사됨!' : '내용 복사'}</span>
+                </button>
+
+                <button
+                  onClick={() => loadReleaseNotes()}
+                  disabled={loadingReleases}
+                  className="p-1 rounded text-xs transition-colors hover:bg-slate-700/40"
+                  style={{ color: 'var(--text-muted)' }}
+                  title="릴리스 정보 새로고침"
+                >
+                  <RefreshCw size={13} className={loadingReleases ? 'animate-spin' : ''} />
+                </button>
+              </div>
+            </div>
+
+            {loadingReleases && releases.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-400 border border-slate-700/50 rounded-xl bg-slate-900/40">
+                <RefreshCw size={16} className="animate-spin mx-auto mb-2 text-blue-400" />
+                GitHub 릴리스 노트를 불러오는 중입니다...
+              </div>
+            ) : releases.length > 0 ? (
+              <div className="border border-slate-700/60 rounded-xl bg-slate-900/60 overflow-hidden">
+                {/* 릴리스 헤더 */}
+                <div className="px-4 py-3 border-b border-slate-700/60 flex items-center justify-between bg-slate-800/40">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-white">
+                      {releases[selectedReleaseIndex]?.name || releases[selectedReleaseIndex]?.tagName}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono">
+                      {releases[selectedReleaseIndex]?.tagName}
+                    </span>
+                  </div>
+                  {releases[selectedReleaseIndex]?.publishedAt && (
+                    <span className="text-[11px] text-slate-400">
+                      {new Date(releases[selectedReleaseIndex].publishedAt).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                {/* 릴리스 본문 (마크다운) */}
+                <div className="p-4 max-h-[380px] overflow-y-auto text-xs leading-relaxed text-slate-200 space-y-2 select-text">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {releases[selectedReleaseIndex]?.body || '상세 릴리스 노트 내용이 없습니다.'}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 text-center text-xs text-slate-400 border border-slate-700/50 rounded-xl bg-slate-900/40">
+                <FileText size={20} className="mx-auto mb-1.5 text-slate-500" />
+                <p>릴리스 노트를 불러올 수 없습니다. [업데이트 확인]을 누르거나 인터넷 연결을 확인하세요.</p>
+                <button
+                  onClick={() => loadReleaseNotes()}
+                  className="mt-2 text-xs text-blue-400 hover:underline"
+                >
+                  다시 시도
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
