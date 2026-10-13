@@ -21,6 +21,7 @@ export default function Settings() {
   const [cloudStatus, setCloudStatus] = useState<any>(null)
   const [cloudSyncing, setCloudSyncing] = useState(false)
   const [copiedCloudUrl, setCopiedCloudUrl] = useState(false)
+  const [copiedCloudKey, setCopiedCloudKey] = useState(false)
   const [editingHosting, setEditingHosting] = useState(false)
   const [hostingUrlInput, setHostingUrlInput] = useState('')
   // 업데이트 상태: 'idle' | 'checking' | 'latest' | 'available' | 'error'
@@ -683,7 +684,16 @@ useEffect(() => {
                         </div>
                         <div className="flex items-center justify-between pt-1 border-t border-slate-800">
                           <span className="text-slate-400 font-medium">암호화 보안 키:</span>
-                          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[160px]">{cloudStatus.key}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px]">{cloudStatus.key}</span>
+                            <button
+                              onClick={handleCopyCloudKey}
+                              className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 hover:bg-slate-700 text-blue-400 transition-colors border border-slate-700"
+                              title="보안 키 복사"
+                            >
+                              {copiedCloudKey ? '복사됨 ✓' : '키 복사'}
+                            </button>
+                          </div>
                         </div>
                       </div>
 

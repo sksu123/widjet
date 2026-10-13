@@ -561,6 +561,57 @@
       border-radius: 4px;
     }
 
+    /* Key Notice Card */
+    .key-notice-card {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      border-radius: 16px;
+      padding: 18px 16px;
+      margin-bottom: 16px;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .key-notice-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 6px;
+    }
+    .key-notice-card p {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+    .key-notice-card .key-input-row {
+      display: flex;
+      gap: 6px;
+    }
+    .key-notice-card input {
+      flex: 1;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      background: #0f172a;
+      color: white;
+      font-size: 12px;
+      outline: none;
+    }
+    .key-notice-card input:focus {
+      border-color: var(--accent);
+    }
+    .key-notice-card button {
+      padding: 9px 14px;
+      border-radius: 8px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
     /* Modal */
     .modal-backdrop {
       position: fixed;
@@ -688,7 +739,8 @@
       </div>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" id="pushNotifyBtn" title="웹푸시 알림 켜기">🔔</button>
+      <button class="icon-btn" id="keyConfigBtn" title="연동 키 설정">🔑</button>
+             <button class="icon-btn" id="pushNotifyBtn" title="웹푸시 알림 켜기">🔔</button>
       <div id="statusBadge" class="status-badge">
         <span class="dot pulse"></span>
         <span id="statusText">연결 중</span>
@@ -760,6 +812,28 @@
   </main>
 
   
+  <!-- 연동 키 설정 모달 (클라우드 모드) -->
+  <div class="modal-backdrop" id="keyModal">
+    <div class="modal-content">
+      <div class="modal-title">🔑 클라우드 연동 키 설정</div>
+      <form class="modal-form" id="keyModalForm">
+        <div class="form-group">
+          <label class="form-label">보안 연동 키 또는 QR 접속 주소</label>
+          <input type="text" class="form-input" id="keyModalInput" placeholder="PC 설정 화면의 주소나 48자리 키 붙여넣기" required />
+          <p style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">
+            PC 교행 보드 [환경설정 ➔ 모바일 연동]에서 QR 코드를 다시 스캔하시거나, 화면에 표시된 모바일 접속 URL 전체를 복사하여 붙여넣으세요.
+          </p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="closeKeyModalBtn">취소</button>
+          <button type="submit" class="btn-save">저장 및 연동</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+
+  
 
   <!-- 토스트 메시지 -->
   <div class="toast" id="toast"></div>
@@ -779,19 +853,33 @@
       }).catch(console.error);
     }
 
+    // 보안 키 파싱 헬퍼 함수
+    function parseKeyFromText(text) {
+      if (!text) return '';
+      text = text.trim();
+      // 1) #key=xxxx 또는 ?key=xxxx 또는 ?k=xxxx
+      const match = text.match(/(?:#|?|&)(?:key|k)=([a-f0-9]{16,64})/i);
+      if (match && match[1]) return match[1];
+      // 2) 48자리 16진수 문자열 직접 입력된 경우
+      const hexMatch = text.match(/[a-f0-9]{32,64}/i);
+      if (hexMatch) return hexMatch[0];
+      return text;
+    }
+
     // 보안 키/토큰 추출
     let cloudKey = '';
     let lanToken = '';
 
     if (IS_CLOUD) {
-      // 1) URL 해시 (#key=...) 확인
+      // 1) URL 해시 (#key=...) 또는 쿼리 파라미터 (?key=... / ?k=...) 확인
       const hash = window.location.hash || '';
-      const match = hash.match(/key=([^&]+)/);
-      if (match && match[1]) {
-        cloudKey = decodeURIComponent(match[1]);
+      const search = window.location.search || '';
+      const extracted = parseKeyFromText(hash + search);
+
+      if (extracted && extracted.length >= 16) {
+        cloudKey = extracted;
         localStorage.setItem('gyoheng_cloud_key', cloudKey);
-        // URL에서 해시 제거하여 히스토리 정리
-        history.replaceState(null, '', window.location.pathname);
+        // [중요!] iOS Safari에서 '홈 화면에 추가' 시 키가 보존되도록 URL 해시를 삭제하지 않습니다!
       } else {
         cloudKey = localStorage.getItem('gyoheng_cloud_key') || '';
       }
@@ -850,13 +938,52 @@
     }
 
     // 데이터 불러오기
+    function renderKeyNotice(show) {
+      const existing = document.getElementById('keyNoticeCard');
+      if (show) {
+        if (!existing) {
+          const card = document.createElement('div');
+          card.id = 'keyNoticeCard';
+          card.className = 'key-notice-card';
+          card.innerHTML = '<div style="font-size: 26px; margin-bottom: 6px;">🔐</div>' +
+            '<h3>모바일 클라우드 연동 필요</h3>' +
+            '<p>PC 교행 보드의 <strong>[환경설정 ➔ 모바일 연동]</strong>에 표시된 <strong>QR 코드</strong>를 다시 스캔하시거나, 아래에 <strong>접속 주소(또는 48자리 연동 키)</strong>를 붙여넣어 주세요.</p>' +
+            '<div class="key-input-row">' +
+            '  <input type="text" id="manualKeyInput" placeholder="접속 주소 또는 연동 키 붙여넣기" />' +
+            '  <button id="saveKeyBtn">연동하기</button>' +
+            '</div>';
+          const main = document.querySelector('main');
+          if (main) main.insertBefore(card, main.firstChild);
+
+          const saveBtn = document.getElementById('saveKeyBtn');
+          const input = document.getElementById('manualKeyInput');
+          if (saveBtn && input) {
+            saveBtn.addEventListener('click', () => {
+              const val = parseKeyFromText(input.value);
+              if (val && val.length >= 16) {
+                cloudKey = val;
+                localStorage.setItem('gyoheng_cloud_key', val);
+                showToast('✅ 연동 키가 저장되었습니다!');
+                loadData();
+              } else {
+                alert('유효한 연동 키가 아닙니다. PC 설정 화면의 전체 접속 주소나 48자리 키를 복사해 붙여넣으세요.');
+              }
+            });
+          }
+        }
+      } else {
+        if (existing) existing.remove();
+      }
+    }
+
     async function loadData() {
       if (IS_CLOUD) {
-        if (!cloudKey) {
+        if (!cloudKey || cloudKey.trim().length < 16) {
           updateConnectionStatus(false);
-          showToast('연동 키가 없습니다. PC 설정의 QR 코드를 스캔해주세요.');
+          renderKeyNotice(true);
           return;
         }
+        renderKeyNotice(false);
 
         try {
           const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_snapshot', {
@@ -1134,8 +1261,50 @@
       } catch (e) {}
     }
 
+    // 키 설정 모달 이벤트 바인딩
+    const keyConfigBtn = document.getElementById('keyConfigBtn');
+    const keyModal = document.getElementById('keyModal');
+    const closeKeyModalBtn = document.getElementById('closeKeyModalBtn');
+    const keyModalForm = document.getElementById('keyModalForm');
+    const keyModalInput = document.getElementById('keyModalInput');
+
+    function openKeyModal() {
+      if (!keyModal) return;
+      if (keyModalInput) keyModalInput.value = cloudKey || '';
+      keyModal.style.display = 'flex';
+    }
+
+    function closeKeyModal() {
+      if (!keyModal) return;
+      keyModal.style.display = 'none';
+    }
+
+    if (keyConfigBtn) keyConfigBtn.addEventListener('click', openKeyModal);
+    if (closeKeyModalBtn) closeKeyModalBtn.addEventListener('click', closeKeyModal);
+    if (keyModalForm) {
+      keyModalForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const val = parseKeyFromText(keyModalInput.value);
+        if (val && val.length >= 16) {
+          cloudKey = val;
+          localStorage.setItem('gyoheng_cloud_key', val);
+          closeKeyModal();
+          showToast('✅ 연동 키가 설정되었습니다!');
+          loadData();
+        } else {
+          alert('유효한 연동 키가 아닙니다. PC 설정 화면의 전체 접속 주소나 48자리 키를 복사해 붙여넣으세요.');
+        }
+      });
+    }
+
     if (pushNotifyBtn) {
       pushNotifyBtn.addEventListener('click', async () => {
+        if (!cloudKey || cloudKey.trim().length < 16) {
+          showToast('클라우드 연동 키가 없습니다. 먼저 연동을 완료해주세요.');
+          openKeyModal();
+          return;
+        }
+
         if (!('Notification' in window) || !('PushManager' in window)) {
           alert('이 브라우저는 웹푸시 알림을 지원하지 않습니다.');
           return;
