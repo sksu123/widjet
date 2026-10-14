@@ -77,8 +77,11 @@ export function regenerateMobileToken(): string {
 }
 
 // 오늘 날짜 반환 (YYYY-MM-DD, KST 기준)
-function getTodayString(): string {
-  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+function getTodayString(offsetDays = 0): string {
+  const d = new Date()
+  if (offsetDays !== 0) d.setDate(d.getDate() + offsetDays)
+  const offset = d.getTimezoneOffset() * 60000
+  return new Date(d.getTime() - offset).toISOString().slice(0, 10)
 }
 
 // 요청 바디 JSON 파싱 헬퍼
@@ -235,11 +238,19 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return
     }
 
-    // 전체 데이터 조회 (오늘 일정, D-DAY, 행정실 오늘 일정)
+    // 전체 데이터 조회 (과거 30일 ~ 미래 90일 스냅샷)
     if (pathname === '/api/data' && req.method === 'GET') {
       try {
-        // 1) 오늘 일정/할일
-        const schedules = db.prepare('SELECT * FROM schedules WHERE start_date = ? ORDER BY id ASC').all(today)
+        const fromDate = getTodayString(-30)
+        const toDate = getTodayString(90)
+
+        // 1) 일정/할일
+        const schedules = db.prepare(`
+          SELECT * FROM schedules 
+          WHERE (start_date >= ? AND start_date <= ?)
+             OR (end_date IS NOT NULL AND end_date >= ? AND start_date <= ?)
+          ORDER BY start_date ASC, id ASC
+        `).all(fromDate, toDate, fromDate, toDate)
 
         // 2) D-DAY 목록 (settings.custom_ddays)
         let ddays: any[] = []
@@ -267,15 +278,15 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           }
         }
 
-        // 3) 행정실 오늘 일정 (admin_schedules)
+        // 3) 행정실 일정 (admin_schedules)
         let adminSchedules: any[] = []
         try {
           adminSchedules = db.prepare(`
-            SELECT id, title, category, date, end_date, is_deadline
+            SELECT id, title, category, date, end_date, is_deadline, memo
             FROM admin_schedules
-            WHERE date = ? OR (end_date IS NOT NULL AND date <= ? AND end_date >= ?)
-            ORDER BY is_deadline DESC, id ASC
-          `).all(today, today, today)
+            WHERE (date >= ? AND date <= ?) OR (end_date IS NOT NULL AND date <= ? AND end_date >= ?)
+            ORDER BY is_deadline DESC, date ASC, id ASC
+          `).all(fromDate, toDate, fromDate, toDate)
         } catch (e) {
           // 행정달력 테이블이 없을 수도 있으므로 안전하게 무시
         }
@@ -316,6 +327,41 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
           VALUES (?, '', ?, ?, ?, 1, 30, 0, 0)
         `)
         const result = stmt.run(title, startDate, category, color)
+
+        broadcastMobileUpdate()
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true, id: result.lastInsertRowid }))
+        return
+      } catch (err: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: err.message }))
+        return
+      }
+    }
+
+    // 새 행정실 일정 추가 (POST /api/admin-schedules)
+    if (pathname === '/api/admin-schedules' && req.method === 'POST') {
+      try {
+        const body = await readRequestBody(req)
+        const title = (body.title || '').trim()
+        if (!title) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, error: 'Title is required' }))
+          return
+        }
+
+        const date = body.date || today
+        const category = body.category || '행정'
+        const endDate = body.end_date || null
+        const isDeadline = (body.is_deadline === 1 || body.is_deadline === true) ? 1 : 0
+        const memo = body.memo || ''
+
+        const stmt = db.prepare(`
+          INSERT INTO admin_schedules (title, category, date, end_date, is_deadline, is_recurring, memo, source)
+          VALUES (?, ?, ?, ?, ?, 0, ?, 'mobile')
+        `)
+        const result = stmt.run(title, category, date, endDate, isDeadline, memo)
 
         broadcastMobileUpdate()
 

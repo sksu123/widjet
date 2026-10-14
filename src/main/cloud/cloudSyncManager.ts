@@ -186,7 +186,7 @@ export function buildSnapshotAndReminders(): {
     const toDate = getKstDateString(90)
     adminSchedules = db
       .prepare(
-        `SELECT id, title, category, date, end_date, is_deadline
+        `SELECT id, title, category, date, end_date, is_deadline, memo
          FROM admin_schedules
          WHERE (date >= ? AND date <= ?)
             OR (end_date IS NOT NULL AND end_date >= ? AND date <= ?)
@@ -305,7 +305,11 @@ export async function pullAndApplyMobileInputs(): Promise<number> {
     if (!items || items.length === 0) return 0
 
     const db = getDb()
-    const stmt = db.prepare(`
+    const adminStmt = db.prepare(`
+      INSERT INTO admin_schedules (title, category, date, end_date, is_deadline, is_recurring, memo, source)
+      VALUES (?, ?, ?, ?, ?, 0, ?, 'mobile')
+    `)
+    const schedStmt = db.prepare(`
       INSERT INTO schedules (title, start_date, category, color, is_all_day, is_completed)
       VALUES (?, ?, ?, '#3b82f6', 1, 0)
     `)
@@ -314,7 +318,20 @@ export async function pullAndApplyMobileInputs(): Promise<number> {
     db.transaction(() => {
       for (const item of items) {
         if (!item.title) continue
-        stmt.run(item.title.trim(), item.start_date || getKstDateString(), item.category || 'general')
+        const title = item.title.trim()
+        const date = item.start_date || getKstDateString()
+        const category = item.category || '행정'
+        const isDeadline = (item.is_deadline === 1 || item.is_deadline === true) ? 1 : 0
+        const memo = item.memo || ''
+        const endDate = item.end_date || null
+        const isTargetAdmin = item.target_type === 'admin' || 
+          ['회계/예산', '인사/노무', '시설/안전', '급식/보건', '행정'].includes(category)
+
+        if (isTargetAdmin) {
+          adminStmt.run(title, category, date, endDate, isDeadline, memo)
+        } else {
+          schedStmt.run(title, date, category)
+        }
         appliedCount++
       }
     })()
@@ -324,7 +341,9 @@ export async function pullAndApplyMobileInputs(): Promise<number> {
       // PC 프론트엔드 UI 즉시 갱신 신호 발송
       BrowserWindow.getAllWindows().forEach((win) => {
         try {
+          win.webContents.send('mobile:data-changed')
           win.webContents.send('calendar:updated')
+          win.webContents.send('admin-calendar:updated')
         } catch (e) {}
       })
       // 최신 스냅샷 다시 업로드

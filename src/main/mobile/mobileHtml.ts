@@ -732,12 +732,14 @@ export function getMobileHtml(
       padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
       border-left: 4px solid var(--accent-purple);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     }
 
     .admin-card.deadline {
-      border-left-color: var(--danger);
+      border-left-color: var(--danger) !important;
+      background: rgba(239, 68, 68, 0.06);
     }
 
     .admin-header {
@@ -750,6 +752,7 @@ export function getMobileHtml(
       font-size: 14px;
       font-weight: 600;
       color: #f8fafc;
+      line-height: 1.4;
     }
 
     .deadline-badge {
@@ -759,6 +762,31 @@ export function getMobileHtml(
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 4px;
+    }
+
+    /* Category Chips */
+    .cat-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .cat-chip {
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--card-border);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .cat-chip.selected {
+      color: #fff !important;
+      font-weight: 700;
     }
 
     /* Key Notice Card */
@@ -993,17 +1021,19 @@ export function getMobileHtml(
           <span>오늘의 업무 & 일정</span>
           <span id="todoStats" style="font-size: 11px; color: var(--text-muted); font-weight: 500;"></span>
         </div>
+        <button class="section-btn" id="openAdminModalBtn" style="background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.25)); border-color: rgba(99,102,241,0.4); color: #93c5fd; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+          <span>+</span><span>행정일정 추가</span>
+        </button>
       </div>
 
-        <!-- 빠른 추가 입력창 (LAN 및 클라우드 양방향 연동) -->
-        <form class="quick-add-form" id="quickAddForm">
-          <input type="text" class="quick-input" id="quickTodoInput" placeholder="할 일을 입력하세요..." maxlength="100" required />
-          <button type="submit" class="quick-submit">추가</button>
-        </form>
+      <!-- 빠른 추가 입력창 (개인 할 일 간편 추가) -->
+      <form class="quick-add-form" id="quickAddForm">
+        <input type="text" class="quick-input" id="quickTodoInput" placeholder="간편 할 일을 입력하세요..." maxlength="100" required />
+        <button type="submit" class="quick-submit">추가</button>
+      </form>
 
-        <div class="todo-list" id="todoList">
-          <!-- 행정실 마감 및 오늘의 할일 통합 동적 렌더링 -->
-        </div>
+      <div class="todo-list" id="todoList">
+        <!-- 행정실 마감 및 오늘의 할일 통합 동적 렌더링 -->
       </div>
     </section>
   </main>
@@ -1060,6 +1090,61 @@ export function getMobileHtml(
   `
       : ''
   }
+
+  <!-- 행정일정 추가 팝업 모달 (PC 행정달력과 동일) -->
+  <div class="modal-backdrop" id="adminScheduleModal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="font-size: 16px; font-weight: 700; color: #f8fafc; margin: 0; display: flex; align-items: center; gap: 6px;">
+          <span>📋</span> 행정 일정 추가
+        </h2>
+        <button type="button" id="closeAdminScheduleModalBtn" style="background: none; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px;">✕</button>
+      </div>
+      <form class="modal-form" id="adminScheduleModalForm">
+        <div class="form-group">
+          <label class="form-label">제목 <span style="color: #ef4444;">*</span></label>
+          <input type="text" class="form-input" id="adminScheduleTitle" placeholder="일정 제목을 입력하세요" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">카테고리</label>
+          <div class="cat-chips" id="adminCatChips">
+            <!-- 5개 카테고리 칩 -->
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label class="form-label">날짜 <span style="color: #ef4444;">*</span></label>
+            <input type="date" class="form-input" id="adminScheduleStartDate" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">종료 날짜 (선택)</label>
+            <input type="date" class="form-input" id="adminScheduleEndDate" />
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 2px;">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="adminScheduleIsDeadline" style="width: 16px; height: 16px; accent-color: #ef4444; cursor: pointer;" />
+            <span id="adminScheduleDeadlineLabel" style="font-size: 13px; color: var(--text-muted); transition: color 0.15s;">
+              마감일로 표시 (빨간색 강조)
+            </span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">메모 (선택)</label>
+          <textarea class="form-input" id="adminScheduleMemo" rows="3" placeholder="메모를 입력하세요 (선택)" style="resize: vertical; min-height: 64px; font-family: inherit;"></textarea>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 14px;">
+          <button type="button" class="btn-cancel" id="cancelAdminScheduleModalBtn">취소</button>
+          <button type="submit" class="btn-save" id="saveAdminScheduleModalBtn">저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- 토스트 메시지 -->
   <div class="toast" id="toast"></div>
@@ -1148,6 +1233,30 @@ export function getMobileHtml(
     const refreshBtn = document.getElementById('refreshBtn');
     const toast = document.getElementById('toast');
     const pushNotifyBtn = document.getElementById('pushNotifyBtn');
+
+    // 행정 카테고리 정의 (PC ScheduleModal과 100% 동일)
+    const ADMIN_CATEGORIES = [
+      { value: '회계/예산', color: '#3b82f6' },
+      { value: '인사/노무', color: '#8b5cf6' },
+      { value: '시설/안전', color: '#f59e0b' },
+      { value: '급식/보건', color: '#10b981' },
+      { value: '행정', color: '#ec4899' }
+    ];
+    let selectedAdminCategory = '행정';
+
+    // 행정 모달 DOM 요소
+    const openAdminModalBtn = document.getElementById('openAdminModalBtn');
+    const adminScheduleModal = document.getElementById('adminScheduleModal');
+    const closeAdminScheduleModalBtn = document.getElementById('closeAdminScheduleModalBtn');
+    const cancelAdminScheduleModalBtn = document.getElementById('cancelAdminScheduleModalBtn');
+    const adminScheduleModalForm = document.getElementById('adminScheduleModalForm');
+    const adminScheduleTitle = document.getElementById('adminScheduleTitle');
+    const adminScheduleStartDate = document.getElementById('adminScheduleStartDate');
+    const adminScheduleEndDate = document.getElementById('adminScheduleEndDate');
+    const adminScheduleIsDeadline = document.getElementById('adminScheduleIsDeadline');
+    const adminScheduleDeadlineLabel = document.getElementById('adminScheduleDeadlineLabel');
+    const adminScheduleMemo = document.getElementById('adminScheduleMemo');
+    const adminCatChips = document.getElementById('adminCatChips');
 
     function getKstToday() {
       const d = new Date();
@@ -1419,27 +1528,49 @@ export function getMobileHtml(
         return;
       }
 
-      // 1) 행정실 마감/일정 상단 렌더링
+      // 1) 행정실 일정 상단 렌더링 (일반 일정 및 마감 일정 모두 충실히 렌더링)
       if (adminList.length > 0) {
         adminList.forEach(a => {
           const item = document.createElement('div');
-          item.className = 'admin-card' + (a.is_deadline ? ' deadline' : '');
-          item.style.marginBottom = '4px';
-          
+          const isDl = a.is_deadline === 1 || a.is_deadline === true;
+          item.className = 'admin-card' + (isDl ? ' deadline' : '');
+          item.style.marginBottom = '6px';
+
+          const catInfo = ADMIN_CATEGORIES.find(c => c.value === a.category) || { value: a.category || '행정', color: '#ec4899' };
+          const catColor = catInfo.color;
+
+          if (!isDl) {
+            item.style.borderLeftColor = catColor;
+          }
+
           const isTargetToday = targetDate === appState.today;
           const deadlineText = isTargetToday ? '오늘 마감' : '마감일';
-          const deadlineTag = a.is_deadline ? '<span class="deadline-badge">' + deadlineText + '</span>' : '';
-          const categoryTag = '<span class="category-badge" style="background: rgba(139,92,246,0.2); color: #c4b5fd;">[행정] ' + escapeHtml(a.category || '공통') + '</span>';
-          
+          const deadlineTag = isDl ? '<span class="deadline-badge">⚑ ' + deadlineText + '</span>' : '';
+          const categoryTag = '<span class="category-badge" style="background: ' + catColor + '20; color: ' + catColor + '; border: 1.5px solid ' + catColor + '50; font-weight: 700;">' + escapeHtml(catInfo.value) + '</span>';
+
+          let dateRangeHtml = '';
+          if (a.end_date && a.end_date !== a.date) {
+            dateRangeHtml = '<span style="font-size: 11px; color: var(--text-muted);">' + escapeHtml(a.date) + ' ~ ' + escapeHtml(a.end_date) + '</span>';
+          }
+
+          let memoHtml = '';
+          if (a.memo && String(a.memo).trim()) {
+            memoHtml = '<div style="font-size: 12px; color: #94a3b8; margin-top: 4px; line-height: 1.4; white-space: pre-wrap; background: rgba(0,0,0,0.2); padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">' + escapeHtml(String(a.memo).trim()) + '</div>';
+          }
+
           item.innerHTML = 
             '<div class="admin-header">' +
               '<div style="display: flex; align-items: center; gap: 6px;">' +
                 categoryTag +
                 deadlineTag +
               '</div>' +
-              '<span style="font-size: 11px; color: var(--text-muted);">학교행정</span>' +
+              (dateRangeHtml || '<span style="font-size: 11px; color: var(--text-muted);">학교행정</span>') +
             '</div>' +
-            '<div class="admin-title" style="margin-top: 4px;">' + escapeHtml(a.title) + '</div>';
+            '<div class="admin-title" style="margin-top: 5px;">' +
+              (isDl ? '<span style="color: #ef4444; margin-right: 4px; font-weight: 700;">⚑</span>' : '<span style="color: ' + catColor + '; margin-right: 4px; font-weight: 700;">📋</span>') +
+              escapeHtml(a.title) +
+            '</div>' +
+            memoHtml;
             
           todoList.appendChild(item);
         });
@@ -1777,6 +1908,216 @@ export function getMobileHtml(
         };
       }
       connectSSE();
+    }
+
+    // ============================================
+    // 행정 일정 모달 로직 (PC ScheduleModal과 연동)
+    // ============================================
+    function renderAdminCategoryChips() {
+      if (!adminCatChips) return;
+      adminCatChips.innerHTML = '';
+      ADMIN_CATEGORIES.forEach(cat => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'cat-chip' + (selectedAdminCategory === cat.value ? ' selected' : '');
+        chip.textContent = cat.value;
+        if (selectedAdminCategory === cat.value) {
+          chip.style.borderColor = cat.color;
+          chip.style.background = cat.color;
+          chip.style.color = '#fff';
+        } else {
+          chip.style.borderColor = cat.color;
+          chip.style.background = 'transparent';
+          chip.style.color = cat.color;
+        }
+        chip.addEventListener('click', () => {
+          selectedAdminCategory = cat.value;
+          renderAdminCategoryChips();
+        });
+        adminCatChips.appendChild(chip);
+      });
+    }
+
+    function openAdminModal() {
+      if (!adminScheduleModal) return;
+      const cur = currentDate || appState.today || getKstToday();
+      if (adminScheduleStartDate) {
+        adminScheduleStartDate.value = cur;
+      }
+      if (adminScheduleEndDate) {
+        adminScheduleEndDate.value = '';
+        adminScheduleEndDate.min = cur;
+      }
+      if (adminScheduleTitle) adminScheduleTitle.value = '';
+      if (adminScheduleMemo) adminScheduleMemo.value = '';
+      if (adminScheduleIsDeadline) {
+        adminScheduleIsDeadline.checked = false;
+        if (adminScheduleDeadlineLabel) {
+          adminScheduleDeadlineLabel.style.color = 'var(--text-muted)';
+          adminScheduleDeadlineLabel.style.fontWeight = '400';
+        }
+      }
+      selectedAdminCategory = '행정';
+      renderAdminCategoryChips();
+      adminScheduleModal.classList.add('open');
+      setTimeout(() => {
+        if (adminScheduleTitle) adminScheduleTitle.focus();
+      }, 100);
+    }
+
+    function closeAdminModal() {
+      if (!adminScheduleModal) return;
+      adminScheduleModal.classList.remove('open');
+    }
+
+    if (openAdminModalBtn) openAdminModalBtn.addEventListener('click', openAdminModal);
+    if (closeAdminScheduleModalBtn) closeAdminScheduleModalBtn.addEventListener('click', closeAdminModal);
+    if (cancelAdminScheduleModalBtn) cancelAdminScheduleModalBtn.addEventListener('click', closeAdminModal);
+
+    // 모달 배경 클릭 시 닫기
+    if (adminScheduleModal) {
+      adminScheduleModal.addEventListener('click', (e) => {
+        if (e.target === adminScheduleModal) closeAdminModal();
+      });
+    }
+
+    if (adminScheduleStartDate && adminScheduleEndDate) {
+      adminScheduleStartDate.addEventListener('change', (e) => {
+        adminScheduleEndDate.min = e.target.value;
+        if (adminScheduleEndDate.value && adminScheduleEndDate.value < e.target.value) {
+          adminScheduleEndDate.value = e.target.value;
+        }
+      });
+    }
+
+    if (adminScheduleIsDeadline && adminScheduleDeadlineLabel) {
+      adminScheduleIsDeadline.addEventListener('change', (e) => {
+        adminScheduleDeadlineLabel.style.color = e.target.checked ? '#ef4444' : 'var(--text-muted)';
+        adminScheduleDeadlineLabel.style.fontWeight = e.target.checked ? '600' : '400';
+      });
+    }
+
+    if (adminScheduleModalForm) {
+      adminScheduleModalForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = (adminScheduleTitle.value || '').trim();
+        if (!title) {
+          alert('일정 제목을 입력해주세요.');
+          return;
+        }
+        const startDate = adminScheduleStartDate.value || currentDate || appState.today || getKstToday();
+        const endDate = adminScheduleEndDate.value || null;
+        const isDeadline = adminScheduleIsDeadline.checked;
+        const memo = (adminScheduleMemo.value || '').trim();
+        const category = selectedAdminCategory || '행정';
+
+        const saveBtn = document.getElementById('saveAdminScheduleModalBtn');
+        if (saveBtn) {
+          saveBtn.disabled = true;
+          saveBtn.textContent = '저장 중...';
+        }
+
+        try {
+          if (IS_CLOUD) {
+            if (!cloudKey || cloudKey.trim().length < 16) {
+              showToast('⚠️ 먼저 연동 키를 설정해주세요.');
+              closeAdminModal();
+              openKeyModal();
+              return;
+            }
+
+            // 1) 8-parameter RPC 시도
+            const payload8 = {
+              p_key: cloudKey,
+              p_title: title,
+              p_date: startDate,
+              p_category: category,
+              p_end_date: endDate,
+              p_is_deadline: isDeadline,
+              p_memo: memo,
+              p_type: 'admin'
+            };
+
+            let res = await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+              },
+              body: JSON.stringify(payload8)
+            });
+
+            // Supabase에 구버전 4파라미터 RPC만 설치된 경우(404) 자동 하위호환
+            if (res.status === 404) {
+              let fallbackTitle = title;
+              if (memo) fallbackTitle += ' (' + memo + ')';
+              res = await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+                },
+                body: JSON.stringify({
+                  p_key: cloudKey,
+                  p_title: fallbackTitle,
+                  p_date: startDate,
+                  p_category: category
+                })
+              });
+            }
+
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.message || '서버 오류 (' + res.status + ')');
+            }
+
+            // 낙관적 UI 업데이트
+            const newAdminItem = {
+              id: Date.now(),
+              title,
+              category,
+              date: startDate,
+              end_date: endDate,
+              is_deadline: isDeadline ? 1 : 0,
+              memo
+            };
+            appState.adminSchedules = appState.adminSchedules || [];
+            appState.adminSchedules.push(newAdminItem);
+            closeAdminModal();
+            render();
+            showToast('✅ 행정 일정이 등록되었습니다! 곧 PC 교행 보드에 반영됩니다.');
+          } else {
+            // LAN 모드
+            const res = await fetch('/api/admin-schedules?token=' + encodeURIComponent(lanToken), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title,
+                category,
+                date: startDate,
+                end_date: endDate,
+                is_deadline: isDeadline ? 1 : 0,
+                memo
+              })
+            });
+
+            if (!res.ok) throw new Error('등록 실패');
+            closeAdminModal();
+            showToast('✅ 행정 일정이 등록되었습니다.');
+            loadData();
+          }
+        } catch (err) {
+          console.error('Failed to add admin schedule:', err);
+          alert('행정 일정 등록 실패: ' + (err.message || '네트워크 오류'));
+        } finally {
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = '저장하기';
+          }
+        }
+      });
     }
 
     // 초기 로드

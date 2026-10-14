@@ -54,6 +54,14 @@ export default function CalendarPage() {
 
   useEffect(() => {
     loadSchedules()
+    if (window.api && (window.api as any).mobile?.onDataChanged) {
+      const unsub = (window.api as any).mobile.onDataChanged(() => {
+        loadSchedules()
+      })
+      return () => {
+        if (typeof unsub === 'function') unsub()
+      }
+    }
   }, [loadSchedules])
 
   // 프론트엔드 필터 적용

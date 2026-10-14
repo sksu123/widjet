@@ -91,6 +91,10 @@ export interface MobileInputItem {
   title: string
   start_date: string
   category: string
+  end_date?: string | null
+  is_deadline?: number | boolean
+  memo?: string
+  target_type?: string
   created_at: string
 }
 
