@@ -123,25 +123,24 @@ export function buildSnapshotAndReminders(): {
 } {
   const db = getDb()
   const today = getKstDateString()
-  const endDate = getKstDateString(60) // 60일 후까지
   const nowUtc = new Date().toISOString()
 
-  // 1) 60일 이내의 schedules 조회
+  // 1) 오늘(당일) 진행 중인 schedules 조회
   let schedules: any[] = []
   try {
     schedules = db
       .prepare(
         `SELECT id, title, description, start_date, end_date, category, color, is_all_day, is_completed, is_dday
          FROM schedules
-         WHERE start_date >= ? AND start_date <= ?
-         ORDER BY start_date ASC, id ASC`
+         WHERE start_date = ? OR (start_date <= ? AND end_date IS NOT NULL AND end_date >= ?)
+         ORDER BY is_completed ASC, start_date ASC, id ASC`
       )
-      .all(today, endDate)
+      .all(today, today, today)
   } catch (e) {
     console.error('Error querying schedules for snapshot:', e)
   }
 
-  // 2) D-DAY 목록 (settings.custom_ddays)
+  // 2) D-DAY 목록 (settings.custom_ddays) - 오늘 및 미래 일정만 (daysLeft >= 0)
   let ddays: any[] = []
   try {
     const row = db.prepare("SELECT value FROM settings WHERE key = 'custom_ddays'").get() as
@@ -151,35 +150,38 @@ export function buildSnapshotAndReminders(): {
       const rawDdays = JSON.parse(row.value)
       const nowDate = new Date()
       nowDate.setHours(0, 0, 0, 0)
-      ddays = rawDdays.map((d: any) => {
-        const target = new Date(d.targetDate)
-        target.setHours(0, 0, 0, 0)
-        const diffTime = target.getTime() - nowDate.getTime()
-        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        return {
-          id: d.id,
-          title: d.title,
-          targetDate: d.targetDate,
-          scheduleId: d.scheduleId,
-          daysLeft
-        }
-      })
+      ddays = rawDdays
+        .map((d: any) => {
+          const target = new Date(d.targetDate)
+          target.setHours(0, 0, 0, 0)
+          const diffTime = target.getTime() - nowDate.getTime()
+          const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          return {
+            id: d.id,
+            title: d.title,
+            targetDate: d.targetDate,
+            scheduleId: d.scheduleId,
+            daysLeft
+          }
+        })
+        .filter((d: any) => d.daysLeft >= 0)
+        .sort((a: any, b: any) => a.daysLeft - b.daysLeft)
     }
   } catch (e) {
     console.error('Error parsing custom_ddays for snapshot:', e)
   }
 
-  // 3) 행정달력 마감일 (admin_schedules)
+  // 3) 오늘(당일) 행정달력 일정 (admin_schedules)
   let adminSchedules: any[] = []
   try {
     adminSchedules = db
       .prepare(
         `SELECT id, title, category, date, end_date, is_deadline
          FROM admin_schedules
-         WHERE date >= ? AND date <= ? AND is_deadline = 1
-         ORDER BY date ASC, id ASC`
+         WHERE date = ? OR (date <= ? AND end_date IS NOT NULL AND end_date >= ?)
+         ORDER BY is_deadline DESC, id ASC`
       )
-      .all(today, endDate)
+      .all(today, today, today)
   } catch (e) {
     // 테이블 없을 시 안전 무시
   }

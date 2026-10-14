@@ -777,35 +777,21 @@
       </div>
     </section>
 
-    <!-- 일정 및 할일 섹션 -->
+    <!-- 일정 및 할일 섹션 (행정실 일정 통합 뷰) -->
     <section>
       <div class="section-header">
         <div class="section-title">
           <span>📝</span>
-          <span>오늘의 업무 & 할일</span>
+          <span>오늘의 업무 & 일정</span>
           <span id="todoStats" style="font-size: 11px; color: var(--text-muted); font-weight: 500;"></span>
         </div>
       </div>
 
-      <!-- 탭 -->
-      <div class="tab-nav">
-        <button class="tab-btn active" id="tabTodo">오늘의 할일</button>
-        <button class="tab-btn" id="tabAdmin">행정실 일정</button>
-      </div>
-
-      <!-- 탭 1: 오늘의 할일 -->
       <div id="todoSection" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
         
 
         <div class="todo-list" id="todoList">
-          <!-- 할일 아이템 동적 렌더링 -->
-        </div>
-      </div>
-
-      <!-- 탭 2: 행정실 일정 -->
-      <div id="adminSection" style="display: none; flex-direction: column; gap: 8px; margin-top: 10px;">
-        <div class="todo-list" id="adminList">
-          <!-- 행정실 일정 렌더링 -->
+          <!-- 행정실 마감 및 오늘의 할일 통합 동적 렌더링 -->
         </div>
       </div>
     </section>
@@ -1071,11 +1057,15 @@
 
     function renderDdays() {
       ddayContainer.innerHTML = '';
-      const list = appState.ddays;
+      // 지나간 일정(D+)은 제외하고 오늘(D-DAY) 및 앞으로 남은 일정만 임박순 표시
+      const list = (appState.ddays || [])
+        .filter(d => d.daysLeft >= 0)
+        .sort((a, b) => a.daysLeft - b.daysLeft);
+
       ddayCount.textContent = list.length > 0 ? '(' + list.length + '개)' : '';
 
       if (list.length === 0) {
-        ddayContainer.innerHTML = '<div class="empty-card">등록된 D-DAY가 없습니다.</div>';
+        ddayContainer.innerHTML = '<div class="empty-card">예정된 D-DAY가 없습니다.</div>';
         return;
       }
 
@@ -1088,24 +1078,20 @@
         if (d.daysLeft === 0) {
           badgeClass += ' today';
           badgeText = 'D-DAY';
-        } else if (d.daysLeft > 0) {
+        } else {
           if (d.daysLeft <= 3) badgeClass += ' urgent';
           badgeText = 'D-' + d.daysLeft;
-        } else {
-          badgeClass += ' past';
-          badgeText = 'D+' + Math.abs(d.daysLeft);
         }
 
-        const deleteHtml = !IS_CLOUD ? `<button class="dday-delete-btn" title="삭제" data-id="${d.id}">✕</button>` : '';
+        const deleteHtml = !IS_CLOUD ? '<button class="dday-delete-btn" title="삭제" data-id="' + d.id + '">✕</button>' : '';
 
-        card.innerHTML = `
-          <div class="dday-tag-row">
-            <span class="${badgeClass}">${badgeText}</span>
-            ${deleteHtml}
-          </div>
-          <div class="dday-title">${escapeHtml(d.title)}</div>
-          <div class="dday-date">${d.targetDate}</div>
-        `;
+        card.innerHTML = 
+          '<div class="dday-tag-row">' +
+            '<span class="' + badgeClass + '">' + badgeText + '</span>' +
+            deleteHtml +
+          '</div>' +
+          '<div class="dday-title">' + escapeHtml(d.title) + '</div>' +
+          '<div class="dday-date">' + (d.targetDate || '') + '</div>';
 
         if (!IS_CLOUD) {
           card.querySelector('.dday-delete-btn')?.addEventListener('click', async (e) => {
@@ -1124,90 +1110,103 @@
 
     function renderTodos() {
       todoList.innerHTML = '';
-      const list = appState.schedules;
-      const completedCount = list.filter(s => s.is_completed === 1).length;
-      todoStats.textContent = list.length > 0 ? '(' + completedCount + '/' + list.length + ' 완료)' : '';
+      const schedules = appState.schedules || [];
+      const adminList = appState.adminSchedules || [];
 
-      if (list.length === 0) {
-        todoList.innerHTML = '<div class="empty-card" style="padding: 30px;">오늘 등록된 일정이 없습니다. ✨</div>';
+      const completedCount = schedules.filter(s => s.is_completed === 1).length;
+      if (adminList.length > 0) {
+        todoStats.textContent = '(' + completedCount + '/' + schedules.length + ' 완료 · 행정 ' + adminList.length + '건)';
+      } else if (schedules.length > 0) {
+        todoStats.textContent = '(' + completedCount + '/' + schedules.length + ' 완료)';
+      } else {
+        todoStats.textContent = '';
+      }
+
+      if (adminList.length === 0 && schedules.length === 0) {
+        todoList.innerHTML = '<div class="empty-card" style="padding: 30px;">오늘 등록된 일정 및 할 일이 없습니다. ✨</div>';
         return;
       }
 
-      list.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'todo-item' + (item.is_completed === 1 ? ' completed' : '');
-        const isChecked = item.is_completed === 1;
+      // 1) 오늘 행정실 마감/일정 상단 렌더링
+      if (adminList.length > 0) {
+        adminList.forEach(a => {
+          const item = document.createElement('div');
+          item.className = 'admin-card' + (a.is_deadline ? ' deadline' : '');
+          item.style.marginBottom = '2px';
+          
+          const deadlineTag = a.is_deadline ? '<span class="deadline-badge">오늘 마감</span>' : '';
+          const categoryTag = '<span class="category-badge" style="background: rgba(139,92,246,0.2); color: #c4b5fd;">[행정] ' + escapeHtml(a.category || '공통') + '</span>';
+          
+          item.innerHTML = 
+            '<div class="admin-header">' +
+              '<div style="display: flex; align-items: center; gap: 6px;">' +
+                categoryTag +
+                deadlineTag +
+              '</div>' +
+              '<span style="font-size: 11px; color: var(--text-muted);">학교행정</span>' +
+            '</div>' +
+            '<div class="admin-title" style="margin-top: 4px;">' + escapeHtml(a.title) + '</div>';
+            
+          todoList.appendChild(item);
+        });
+      }
 
-        const checkHtml = !IS_CLOUD
-          ? `<button class="checkbox-btn ${isChecked ? 'checked' : ''}" data-id="${item.id}">
-              ${isChecked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-            </button>`
-          : `<div class="checkbox-btn ${isChecked ? 'checked' : ''}" style="cursor: default;">
-              ${isChecked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-            </div>`;
+      // 2) 오늘 개인 일정 및 할일 목록 렌더링
+      if (schedules.length > 0) {
+        schedules.forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'todo-item' + (item.is_completed === 1 ? ' completed' : '');
+          const isChecked = item.is_completed === 1;
 
-        const deleteHtml = !IS_CLOUD
-          ? `<button class="todo-delete-btn" data-id="${item.id}" title="삭제">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>`
-          : '';
+          const checkIcon = isChecked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+          const checkHtml = !IS_CLOUD
+            ? '<button class="checkbox-btn ' + (isChecked ? 'checked' : '') + '" data-id="' + item.id + '">' + checkIcon + '</button>'
+            : '<div class="checkbox-btn ' + (isChecked ? 'checked' : '') + '" style="cursor: default;">' + checkIcon + '</div>';
 
-        row.innerHTML = `
-          ${checkHtml}
-          <div class="todo-content">
-            <div class="todo-title">${escapeHtml(item.title)}</div>
-            <div class="todo-meta">
-              <span class="category-badge">${getCategoryName(item.category)}</span>
-            </div>
-          </div>
-          ${deleteHtml}
-        `;
+          const deleteHtml = !IS_CLOUD
+            ? '<button class="todo-delete-btn" data-id="' + item.id + '" title="삭제">' +
+                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+              '</button>'
+            : '';
 
-        if (!IS_CLOUD) {
-          row.querySelector('.checkbox-btn')?.addEventListener('click', async () => {
-            const nextStatus = isChecked ? 0 : 1;
-            await fetch('/api/schedules/' + item.id + '/toggle?token=' + encodeURIComponent(lanToken), {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ is_completed: nextStatus })
+          row.innerHTML = 
+            checkHtml +
+            '<div class="todo-content">' +
+              '<div class="todo-title">' + escapeHtml(item.title) + '</div>' +
+              '<div class="todo-meta">' +
+                '<span class="category-badge">' + getCategoryName(item.category) + '</span>' +
+              '</div>' +
+            '</div>' +
+            deleteHtml;
+
+          if (!IS_CLOUD) {
+            row.querySelector('.checkbox-btn')?.addEventListener('click', async () => {
+              const nextStatus = isChecked ? 0 : 1;
+              await fetch('/api/schedules/' + item.id + '/toggle?token=' + encodeURIComponent(lanToken), {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_completed: nextStatus })
+              });
+              item.is_completed = nextStatus;
+              renderTodos();
             });
-            item.is_completed = nextStatus;
-            renderTodos();
-          });
 
-          row.querySelector('.todo-delete-btn')?.addEventListener('click', async () => {
-            if (confirm('이 할 일을 삭제하시겠습니까?')) {
-              await fetch('/api/schedules/' + item.id + '?token=' + encodeURIComponent(lanToken), { method: 'DELETE' });
-              showToast('삭제되었습니다.');
-              loadData();
-            }
-          });
-        }
+            row.querySelector('.todo-delete-btn')?.addEventListener('click', async () => {
+              if (confirm('이 할 일을 삭제하시겠습니까?')) {
+                await fetch('/api/schedules/' + item.id + '?token=' + encodeURIComponent(lanToken), { method: 'DELETE' });
+                showToast('삭제되었습니다.');
+                loadData();
+              }
+            });
+          }
 
-        todoList.appendChild(row);
-      });
+          todoList.appendChild(row);
+        });
+      }
     }
 
     function renderAdminSchedules() {
-      adminList.innerHTML = '';
-      const list = appState.adminSchedules;
-      if (list.length === 0) {
-        adminList.innerHTML = '<div class="empty-card" style="padding: 24px;">오늘 예정된 학교 행정 일정이 없습니다.</div>';
-        return;
-      }
-
-      list.forEach(a => {
-        const item = document.createElement('div');
-        item.className = 'admin-card' + (a.is_deadline ? ' deadline' : '');
-        item.innerHTML = `
-          <div class="admin-header">
-            <span style="font-size: 11px; color: var(--text-muted);">${escapeHtml(a.category || '행정')}</span>
-            ${a.is_deadline ? '<span class="deadline-badge">마감일</span>' : ''}
-          </div>
-          <div class="admin-title">${escapeHtml(a.title)}</div>
-        `;
-        adminList.appendChild(item);
-      });
+      // 통합 렌더링으로 대체됨
     }
 
     function getCategoryName(cat) {
@@ -1220,22 +1219,17 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 탭 전환
-    tabTodo.addEventListener('click', () => {
-      activeTab = 'todo';
-      tabTodo.classList.add('active');
-      tabAdmin.classList.remove('active');
-      todoSection.style.display = 'flex';
-      adminSection.style.display = 'none';
-    });
-
-    tabAdmin.addEventListener('click', () => {
-      activeTab = 'admin';
-      tabAdmin.classList.add('active');
-      tabTodo.classList.remove('active');
-      adminSection.style.display = 'flex';
-      todoSection.style.display = 'none';
-    });
+    // 탭 전환 (통합 뷰 적용)
+    if (tabTodo) {
+      tabTodo.addEventListener('click', () => {
+        activeTab = 'todo';
+      });
+    }
+    if (tabAdmin) {
+      tabAdmin.addEventListener('click', () => {
+        activeTab = 'admin';
+      });
+    }
 
     // 새로고침
     refreshBtn.addEventListener('click', () => {
