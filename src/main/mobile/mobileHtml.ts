@@ -1513,18 +1513,6 @@ export function getMobileHtml(
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 탭 전환 (통합 뷰 적용)
-    if (tabTodo) {
-      tabTodo.addEventListener('click', () => {
-        activeTab = 'todo';
-      });
-    }
-    if (tabAdmin) {
-      tabAdmin.addEventListener('click', () => {
-        activeTab = 'admin';
-      });
-    }
-
     // 날짜 네비게이션 이벤트 바인딩
     if (prevDayBtn) {
       prevDayBtn.addEventListener('click', () => changeDate(-1));
