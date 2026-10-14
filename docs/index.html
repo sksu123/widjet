@@ -1334,25 +1334,30 @@
       todoList.innerHTML = '';
       const targetDate = currentDate || appState.today || getKstToday();
 
-      // 선택된 날짜에 진행 중인 개인 일정/할일 필터링
-      const schedules = (appState.schedules || []).filter(s => {
-        if (!s.start_date) return false;
-        if (s.start_date === targetDate) return true;
-        if (s.end_date && s.start_date <= targetDate && s.end_date >= targetDate) return true;
-        return false;
-      });
-
       // 선택된 날짜에 해당하는 행정실 일정/마감 필터링
       const adminList = (appState.adminSchedules || []).filter(a => {
         if (!a.date) return false;
-        if (a.date === targetDate) return true;
-        if (a.end_date && a.date <= targetDate && a.end_date >= targetDate) return true;
+        const aDate = String(a.date).trim().slice(0, 10);
+        const aEnd = a.end_date ? String(a.end_date).trim().slice(0, 10) : '';
+        if (aDate === targetDate) return true;
+        if (aEnd && aDate <= targetDate && aEnd >= targetDate) return true;
         return false;
+      });
+
+      // 선택된 날짜에 진행 중인 개인 일정/할일 필터링 (행정일정과 제목 중복 제거)
+      const adminTitles = new Set(adminList.map(a => String(a.title || '').trim()));
+      const schedules = (appState.schedules || []).filter(s => {
+        if (!s.start_date) return false;
+        const sStart = String(s.start_date).trim().slice(0, 10);
+        const sEnd = s.end_date ? String(s.end_date).trim().slice(0, 10) : '';
+        const isMatched = (sStart === targetDate) || (sEnd && sStart <= targetDate && sEnd >= targetDate);
+        if (!isMatched) return false;
+        return !adminTitles.has(String(s.title || '').trim());
       });
 
       const completedCount = schedules.filter(s => s.is_completed === 1).length;
       if (adminList.length > 0) {
-        todoStats.textContent = '(' + completedCount + '/' + schedules.length + ' 완료 · 행정 ' + adminList.length + '건)';
+        todoStats.textContent = '(' + completedCount + '/' + (schedules.length + adminList.length) + ' 항목 · 행정 ' + adminList.length + '건)';
       } else if (schedules.length > 0) {
         todoStats.textContent = '(' + completedCount + '/' + schedules.length + ' 완료)';
       } else {
@@ -1541,7 +1546,7 @@
                 p_key: cloudKey,
                 p_title: text,
                 p_date: targetDate,
-                p_category: 'general'
+                p_category: '행정'
               })
             });
 
@@ -1550,19 +1555,20 @@
               throw new Error(errData.message || '서버 오류 (' + res.status + ')');
             }
 
-            // 화면에 즉시 임시 등록 (낙관적 UI 반영)
+            // 화면에 즉시 임시 등록 (낙관적 UI 반영 - 행정 일정에 추가)
             const newItem = {
               id: Date.now(),
               title: text,
-              start_date: targetDate,
-              category: 'general',
-              is_completed: 0
+              date: targetDate,
+              category: '행정',
+              is_deadline: 0,
+              memo: ''
             };
-            appState.schedules = appState.schedules || [];
-            appState.schedules.push(newItem);
+            appState.adminSchedules = appState.adminSchedules || [];
+            appState.adminSchedules.push(newItem);
             renderTodos();
             quickTodoInput.value = '';
-            showToast('✅ 일정이 추가되었습니다! 곧 PC 교행 보드에 반영됩니다.');
+            showToast('✅ 할 일이 추가되었습니다! PC 행정 달력에 반영됩니다.');
           } catch (err) {
             console.error('Failed to add schedule:', err);
             alert('일정 추가 실패: ' + (err.message || '네트워크 오류'));
@@ -1862,47 +1868,30 @@
               return;
             }
 
-            // 1) 8-parameter RPC 시도
-            const payload8 = {
-              p_key: cloudKey,
-              p_title: title,
-              p_date: startDate,
-              p_category: category,
-              p_end_date: endDate,
-              p_is_deadline: isDeadline,
-              p_memo: memo,
-              p_type: 'admin'
-            };
+            // 모든 메타데이터(종료일, 마감여부, 메모 등)를 손실 없이 전송하기 위해 JSON 패킹
+            const packedTitle = JSON.stringify({
+              title,
+              endDate,
+              isDeadline: isDeadline ? 1 : 0,
+              memo,
+              category,
+              target: 'admin'
+            });
 
-            let res = await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
+            const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'apikey': SUPABASE_ANON_KEY,
                 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
               },
-              body: JSON.stringify(payload8)
+              body: JSON.stringify({
+                p_key: cloudKey,
+                p_title: packedTitle,
+                p_date: startDate,
+                p_category: category
+              })
             });
-
-            // Supabase에 구버전 4파라미터 RPC만 설치된 경우(404) 자동 하위호환
-            if (res.status === 404) {
-              let fallbackTitle = title;
-              if (memo) fallbackTitle += ' (' + memo + ')';
-              res = await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'apikey': SUPABASE_ANON_KEY,
-                  'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-                },
-                body: JSON.stringify({
-                  p_key: cloudKey,
-                  p_title: fallbackTitle,
-                  p_date: startDate,
-                  p_category: category
-                })
-              });
-            }
 
             if (!res.ok) {
               const errData = await res.json().catch(() => ({}));
@@ -1922,8 +1911,10 @@
             appState.adminSchedules = appState.adminSchedules || [];
             appState.adminSchedules.push(newAdminItem);
             closeAdminModal();
+            // 입력한 일정의 날짜로 화면 이동하여 즉시 확인
+            currentDate = startDate;
             render();
-            showToast('✅ 행정 일정이 등록되었습니다! 곧 PC 교행 보드에 반영됩니다.');
+            showToast('✅ 행정 일정이 등록되었습니다! PC 행정 달력에 반영됩니다.');
           } else {
             // LAN 모드
             const res = await fetch('/api/admin-schedules?token=' + encodeURIComponent(lanToken), {

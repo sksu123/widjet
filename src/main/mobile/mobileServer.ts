@@ -322,11 +322,11 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
         const category = body.category || 'general'
         const color = body.color || '#3b82f6'
 
-        const stmt = db.prepare(`
-          INSERT INTO schedules (title, description, start_date, category, color, is_all_day, reminder_minutes, is_completed, is_dday)
-          VALUES (?, '', ?, ?, ?, 1, 30, 0, 0)
+        const adminStmt = db.prepare(`
+          INSERT INTO admin_schedules (title, category, date, end_date, is_deadline, is_recurring, memo, source)
+          VALUES (?, '행정', ?, null, 0, 0, '', 'mobile')
         `)
-        const result = stmt.run(title, startDate, category, color)
+        const result = adminStmt.run(title, startDate)
 
         broadcastMobileUpdate()
 

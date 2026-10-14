@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gyoheng-board-v2';
+const CACHE_NAME = 'gyoheng-board-v5';
 const STATIC_ASSETS = ['./', './manifest.json', './icon.png'];
 
 self.addEventListener('install', (e) => {

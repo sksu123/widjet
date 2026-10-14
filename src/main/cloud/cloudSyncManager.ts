@@ -130,11 +130,11 @@ export function buildSnapshotAndReminders(): {
   const today = getKstDateString()
   const nowUtc = new Date().toISOString()
 
-  // 1) 모바일 날짜 탐색을 위한 schedules 조회 (과거 30일 ~ 미래 90일)
+  // 1) 모바일 날짜 탐색을 위한 schedules 조회 (과거 180일 ~ 미래 365일)
   let schedules: any[] = []
   try {
-    const fromDate = getKstDateString(-30)
-    const toDate = getKstDateString(90)
+    const fromDate = getKstDateString(-180)
+    const toDate = getKstDateString(365)
     schedules = db
       .prepare(
         `SELECT id, title, description, start_date, end_date, category, color, is_all_day, is_completed, is_dday
@@ -179,20 +179,16 @@ export function buildSnapshotAndReminders(): {
     console.error('Error parsing custom_ddays for snapshot:', e)
   }
 
-  // 3) 모바일 날짜 탐색을 위한 행정달력 일정 (admin_schedules) (과거 30일 ~ 미래 90일)
+  // 3) 행정 달력 메뉴에 등록되어 있는 모든 일정 (전체 연도/월 빠짐없이 동기화)
   let adminSchedules: any[] = []
   try {
-    const fromDate = getKstDateString(-30)
-    const toDate = getKstDateString(90)
     adminSchedules = db
       .prepare(
         `SELECT id, title, category, date, end_date, is_deadline, memo
          FROM admin_schedules
-         WHERE (date >= ? AND date <= ?)
-            OR (end_date IS NOT NULL AND end_date >= ? AND date <= ?)
          ORDER BY is_deadline DESC, date ASC, id ASC`
       )
-      .all(fromDate, toDate, fromDate, toDate)
+      .all()
   } catch (e) {
     // 테이블 없을 시 안전 무시
   }
@@ -318,20 +314,36 @@ export async function pullAndApplyMobileInputs(): Promise<number> {
     db.transaction(() => {
       for (const item of items) {
         if (!item.title) continue
-        const title = item.title.trim()
-        const date = item.start_date || getKstDateString()
-        const category = item.category || '행정'
-        const isDeadline = (item.is_deadline === 1 || item.is_deadline === true) ? 1 : 0
-        const memo = item.memo || ''
-        const endDate = item.end_date || null
-        const isTargetAdmin = item.target_type === 'admin' || 
-          ['회계/예산', '인사/노무', '시설/안전', '급식/보건', '행정'].includes(category)
+        let title = item.title.trim()
+        let date = item.start_date || getKstDateString()
+        let category = item.category || '행정'
+        let endDate: string | null = item.end_date || null
+        let isDeadline = (item.is_deadline === 1 || item.is_deadline === true) ? 1 : 0
+        let memo = item.memo || ''
 
-        if (isTargetAdmin) {
-          adminStmt.run(title, category, date, endDate, isDeadline, memo)
-        } else {
-          schedStmt.run(title, date, category)
+        // 1) 만약 title이 JSON 형식({ ... })으로 패킹된 경우 상세 메타데이터 언패킹
+        if (title.startsWith('{') && title.endsWith('}')) {
+          try {
+            const parsed = JSON.parse(title)
+            if (parsed.title) {
+              title = String(parsed.title).trim()
+              if (parsed.endDate !== undefined) endDate = parsed.endDate || null
+              if (parsed.isDeadline !== undefined) isDeadline = parsed.isDeadline ? 1 : 0
+              if (parsed.memo !== undefined) memo = parsed.memo || ''
+              if (parsed.category) category = parsed.category
+              if (parsed.date) date = parsed.date
+            }
+          } catch (e) {
+            // 일반 텍스트인 경우 그대로 사용
+          }
         }
+
+        if (category === 'general' || !category) {
+          category = '행정'
+        }
+
+        // 모바일에서 입력한 간편할일 및 행정일정 모두 admin_schedules(행정 달력)에 등록
+        adminStmt.run(title, category, date, endDate, isDeadline, memo)
         appliedCount++
       }
     })()
