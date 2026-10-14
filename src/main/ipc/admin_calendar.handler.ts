@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDb } from '../db/database'
+import { triggerCloudSync } from '../cloud/cloudSyncManager'
 
 export interface AdminSchedule {
   id: number
@@ -150,6 +151,7 @@ export function registerAdminCalendarHandlers(): void {
       generateRecurring(data.date, data, newId)
     }
 
+    triggerCloudSync()
     return { success: true, id: newId }
   })
 
@@ -181,6 +183,7 @@ export function registerAdminCalendarHandlers(): void {
     if (data.is_recurring) {
       generateRecurring(data.date!, data, id)
     }
+    triggerCloudSync()
     return { success: true }
   })
 
@@ -188,6 +191,7 @@ export function registerAdminCalendarHandlers(): void {
   ipcMain.handle('admin-cal:delete', async (_, id: number) => {
     const db = getDb()
     db.prepare('DELETE FROM admin_schedules WHERE id=?').run(id)
+    triggerCloudSync()
     return { success: true }
   })
 
@@ -207,6 +211,7 @@ export function registerAdminCalendarHandlers(): void {
       WHERE date LIKE ? AND title LIKE ?
     `).run(`${year}-%`, `%${baseTitle}%`)
     
+    triggerCloudSync()
     return { success: true, count: result.changes }
   })
 
@@ -259,6 +264,7 @@ export function registerAdminCalendarHandlers(): void {
     })
     insertMany()
 
+    triggerCloudSync()
     return { success: true, count }
   })
 }

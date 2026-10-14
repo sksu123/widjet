@@ -7,7 +7,7 @@ import { setupTray } from './tray'
 import { setupDatabase } from './db/database'
 import { registerAllHandlers } from './ipc'
 import { startMobileServer, stopMobileServer } from './mobile/mobileServer'
-import { syncCloudNow } from './cloud/cloudSyncManager'
+import { syncCloudNow, startCloudSyncLoop } from './cloud/cloudSyncManager'
 import axios from 'axios'
 
 let mainWindow: BrowserWindow | null = null
@@ -74,8 +74,9 @@ app.whenReady().then(async () => {
     console.error('Failed to start mobile server:', err)
   }
 
-  // 외부 클라우드 동기화 (Supabase)
+  // 외부 클라우드 동기화 (Supabase) 및 양방향 모바일 수신 루프 시작
   syncCloudNow().catch(() => {})
+  startCloudSyncLoop()
 
   // D-Day 시작 알림
   try {

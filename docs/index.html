@@ -184,21 +184,90 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 2px 4px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 6px 10px;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .date-nav-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: #94a3b8;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    .date-nav-btn:active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .date-center-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      padding: 4px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+
+    .date-center-wrap:active {
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .today-date {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
-      color: #e2e8f0;
+      color: #f1f5f9;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .today-jump-btn {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: #60a5fa;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .today-jump-btn:active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .hidden-date-picker {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
     }
 
     .refresh-btn {
-      background: none;
-      border: none;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
       color: var(--text-muted);
       cursor: pointer;
       display: flex;
@@ -749,11 +818,15 @@
   </header>
 
   <main>
-    <!-- 날짜 바 -->
+    <!-- 날짜 네비게이션 바 -->
     <div class="date-bar">
-      <div class="today-date" id="todayDateStr">
-        📅 오늘 일정
+      <button class="date-nav-btn" id="prevDayBtn" title="이전 날">◀</button>
+      <div class="date-center-wrap" id="dateCenterWrap" title="날짜 선택">
+        <input type="date" id="datePickerInput" class="hidden-date-picker" />
+        <div class="today-date" id="todayDateStr">📅 오늘 일정</div>
       </div>
+      <button class="date-nav-btn" id="nextDayBtn" title="다음 날">▶</button>
+      <button class="today-jump-btn" id="todayJumpBtn" title="오늘로 이동" style="display: none;">오늘</button>
       <button class="refresh-btn" id="refreshBtn" title="새로고침">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
@@ -787,8 +860,11 @@
         </div>
       </div>
 
-      <div id="todoSection" style="display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
-        
+        <!-- 빠른 추가 입력창 (LAN 및 클라우드 양방향 연동) -->
+        <form class="quick-add-form" id="quickAddForm">
+          <input type="text" class="quick-input" id="quickTodoInput" placeholder="할 일을 입력하세요..." maxlength="100" required />
+          <button type="submit" class="quick-submit">추가</button>
+        </form>
 
         <div class="todo-list" id="todoList">
           <!-- 행정실 마감 및 오늘의 할일 통합 동적 렌더링 -->
@@ -887,24 +963,51 @@
       isConnected: false
     };
 
+    let currentDate = ''; // 사용자가 현재 보고 있는 선택 날짜 (YYYY-MM-DD)
     let activeTab = 'todo';
 
     // DOM 요소
     const statusBadge = document.getElementById('statusBadge');
     const statusText = document.getElementById('statusText');
     const todayDateStr = document.getElementById('todayDateStr');
+    const prevDayBtn = document.getElementById('prevDayBtn');
+    const nextDayBtn = document.getElementById('nextDayBtn');
+    const todayJumpBtn = document.getElementById('todayJumpBtn');
+    const datePickerInput = document.getElementById('datePickerInput');
+    const dateCenterWrap = document.getElementById('dateCenterWrap');
     const ddayContainer = document.getElementById('ddayContainer');
     const ddayCount = document.getElementById('ddayCount');
     const todoList = document.getElementById('todoList');
     const todoStats = document.getElementById('todoStats');
-    const adminList = document.getElementById('adminList');
-    const tabTodo = document.getElementById('tabTodo');
-    const tabAdmin = document.getElementById('tabAdmin');
-    const todoSection = document.getElementById('todoSection');
-    const adminSection = document.getElementById('adminSection');
+    const quickAddForm = document.getElementById('quickAddForm');
+    const quickTodoInput = document.getElementById('quickTodoInput');
     const refreshBtn = document.getElementById('refreshBtn');
     const toast = document.getElementById('toast');
     const pushNotifyBtn = document.getElementById('pushNotifyBtn');
+
+    function getKstToday() {
+      const d = new Date();
+      const offset = d.getTimezoneOffset() * 60000;
+      return new Date(d.getTime() - offset).toISOString().slice(0, 10);
+    }
+
+    function changeDate(deltaDays) {
+      if (!currentDate) currentDate = appState.today || getKstToday();
+      const parts = currentDate.split('-');
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      d.setDate(d.getDate() + deltaDays);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      currentDate = y + '-' + m + '-' + day;
+      render();
+    }
+
+    function setDate(dateStr) {
+      if (!dateStr) return;
+      currentDate = dateStr;
+      render();
+    }
 
     function showToast(msg) {
       toast.textContent = msg;
@@ -1042,17 +1145,27 @@
 
     // 렌더링
     function render() {
-      if (appState.today) {
-        const parts = appState.today.split('-');
-        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        const days = ['일', '월', '화', '수', '목', '금', '토'];
-        const dayStr = days[dateObj.getDay()];
-        todayDateStr.textContent = '📅 ' + parts[0] + '년 ' + parts[1] + '월 ' + parts[2] + '일 (' + dayStr + ')';
-      }
-
+      if (!currentDate) currentDate = appState.today || getKstToday();
+      renderDateBar();
       renderDdays();
       renderTodos();
       renderAdminSchedules();
+    }
+
+    function renderDateBar() {
+      const targetDate = currentDate || appState.today || getKstToday();
+      const parts = targetDate.split('-');
+      if (parts.length === 3) {
+        const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        const days = ['일', '월', '화', '수', '목', '금', '토'];
+        const dayStr = days[dateObj.getDay()];
+        const isToday = targetDate === appState.today;
+        todayDateStr.innerHTML = '📅 ' + parts[0] + '.' + parts[1] + '.' + parts[2] + ' (' + dayStr + ')' +
+          (isToday ? ' <span style="font-size: 10px; background: rgba(59,130,246,0.3); color: #93c5fd; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">오늘</span>' : '');
+        
+        if (datePickerInput) datePickerInput.value = targetDate;
+        if (todayJumpBtn) todayJumpBtn.style.display = isToday ? 'none' : 'inline-block';
+      }
     }
 
     function renderDdays() {
@@ -1110,10 +1223,23 @@
 
     function renderTodos() {
       todoList.innerHTML = '';
-      const today = appState.today || '';
-      // 오늘 날짜와 일치하지 않는 다른 날의 일정/행정은 철저히 배제
-      const schedules = (appState.schedules || []).filter(s => !today || !s.start_date || s.start_date === today);
-      const adminList = (appState.adminSchedules || []).filter(a => !today || !a.date || a.date === today);
+      const targetDate = currentDate || appState.today || getKstToday();
+
+      // 선택된 날짜에 진행 중인 개인 일정/할일 필터링
+      const schedules = (appState.schedules || []).filter(s => {
+        if (!s.start_date) return false;
+        if (s.start_date === targetDate) return true;
+        if (s.end_date && s.start_date <= targetDate && s.end_date >= targetDate) return true;
+        return false;
+      });
+
+      // 선택된 날짜에 해당하는 행정실 일정/마감 필터링
+      const adminList = (appState.adminSchedules || []).filter(a => {
+        if (!a.date) return false;
+        if (a.date === targetDate) return true;
+        if (a.end_date && a.date <= targetDate && a.end_date >= targetDate) return true;
+        return false;
+      });
 
       const completedCount = schedules.filter(s => s.is_completed === 1).length;
       if (adminList.length > 0) {
@@ -1125,18 +1251,20 @@
       }
 
       if (adminList.length === 0 && schedules.length === 0) {
-        todoList.innerHTML = '<div class="empty-card" style="padding: 30px;">오늘 등록된 일정 및 할 일이 없습니다. ✨</div>';
+        todoList.innerHTML = '<div class="empty-card" style="padding: 30px;">' + targetDate + ' 일정 및 할 일이 없습니다. ✨</div>';
         return;
       }
 
-      // 1) 오늘 행정실 마감/일정 상단 렌더링
+      // 1) 행정실 마감/일정 상단 렌더링
       if (adminList.length > 0) {
         adminList.forEach(a => {
           const item = document.createElement('div');
           item.className = 'admin-card' + (a.is_deadline ? ' deadline' : '');
-          item.style.marginBottom = '2px';
+          item.style.marginBottom = '4px';
           
-          const deadlineTag = a.is_deadline ? '<span class="deadline-badge">오늘 마감</span>' : '';
+          const isTargetToday = targetDate === appState.today;
+          const deadlineText = isTargetToday ? '오늘 마감' : '마감일';
+          const deadlineTag = a.is_deadline ? '<span class="deadline-badge">' + deadlineText + '</span>' : '';
           const categoryTag = '<span class="category-badge" style="background: rgba(139,92,246,0.2); color: #c4b5fd;">[행정] ' + escapeHtml(a.category || '공통') + '</span>';
           
           item.innerHTML = 
@@ -1230,6 +1358,118 @@
     if (tabAdmin) {
       tabAdmin.addEventListener('click', () => {
         activeTab = 'admin';
+      });
+    }
+
+    // 날짜 네비게이션 이벤트 바인딩
+    if (prevDayBtn) {
+      prevDayBtn.addEventListener('click', () => changeDate(-1));
+    }
+    if (nextDayBtn) {
+      nextDayBtn.addEventListener('click', () => changeDate(1));
+    }
+    if (todayJumpBtn) {
+      todayJumpBtn.addEventListener('click', () => {
+        currentDate = appState.today || getKstToday();
+        render();
+      });
+    }
+    if (dateCenterWrap && datePickerInput) {
+      dateCenterWrap.addEventListener('click', () => {
+        if (datePickerInput.showPicker) {
+          try {
+            datePickerInput.showPicker();
+          } catch(e) {
+            datePickerInput.click();
+          }
+        } else {
+          datePickerInput.click();
+        }
+      });
+      datePickerInput.addEventListener('change', (e) => {
+        if (e.target.value) {
+          setDate(e.target.value);
+        }
+      });
+    }
+
+    // 빠른 일정/할 일 추가 (2단계: 모바일 ➔ PC 양방향 연동)
+    if (quickAddForm) {
+      quickAddForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = (quickTodoInput.value || '').trim();
+        if (!text) return;
+
+        const targetDate = currentDate || appState.today || getKstToday();
+
+        if (IS_CLOUD) {
+          if (!cloudKey || cloudKey.trim().length < 16) {
+            showToast('⚠️ 먼저 연동 키를 설정해주세요.');
+            openKeyModal();
+            return;
+          }
+
+          quickTodoInput.disabled = true;
+          try {
+            const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+              },
+              body: JSON.stringify({
+                p_key: cloudKey,
+                p_title: text,
+                p_date: targetDate,
+                p_category: 'general'
+              })
+            });
+
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.message || '서버 오류 (' + res.status + ')');
+            }
+
+            // 화면에 즉시 임시 등록 (낙관적 UI 반영)
+            const newItem = {
+              id: Date.now(),
+              title: text,
+              start_date: targetDate,
+              category: 'general',
+              is_completed: 0
+            };
+            appState.schedules = appState.schedules || [];
+            appState.schedules.push(newItem);
+            renderTodos();
+            quickTodoInput.value = '';
+            showToast('✅ 일정이 추가되었습니다! 곧 PC 교행 보드에 반영됩니다.');
+          } catch (err) {
+            console.error('Failed to add schedule:', err);
+            alert('일정 추가 실패: ' + (err.message || '네트워크 오류'));
+          } finally {
+            quickTodoInput.disabled = false;
+          }
+        } else {
+          // LAN 모드
+          try {
+            const res = await fetch('/api/schedules?token=' + encodeURIComponent(lanToken), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: text,
+                start_date: targetDate,
+                category: 'general'
+              })
+            });
+            if (!res.ok) throw new Error('등록 실패');
+            quickTodoInput.value = '';
+            showToast('할 일이 추가되었습니다.');
+            loadData();
+          } catch (err) {
+            alert('일정 추가 실패: ' + err.message);
+          }
+        }
       });
     }
 

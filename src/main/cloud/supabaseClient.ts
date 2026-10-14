@@ -85,3 +85,28 @@ export async function revokeKeyFromCloud(key: string): Promise<boolean> {
     throw new Error(msg)
   }
 }
+
+export interface MobileInputItem {
+  id: number
+  title: string
+  start_date: string
+  category: string
+  created_at: string
+}
+
+/**
+ * Supabase RPC: get_pending_mobile_inputs (모바일에서 추가된 새 일정 가져오기)
+ */
+export async function getPendingMobileInputsFromCloud(
+  key: string
+): Promise<MobileInputItem[]> {
+  try {
+    const res = await apiClient.post('/rpc/get_pending_mobile_inputs', {
+      p_key: key
+    })
+    return Array.isArray(res.data) ? res.data : []
+  } catch (err: any) {
+    return []
+  }
+}
+

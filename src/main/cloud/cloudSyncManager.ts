@@ -1,17 +1,21 @@
 import crypto from 'crypto'
 import QRCode from 'qrcode'
+import { BrowserWindow } from 'electron'
 import { getDb } from '../db/database'
 import {
   pushSnapshotToCloud,
   revokeKeyFromCloud,
+  getPendingMobileInputsFromCloud,
   SnapshotPayload,
   ReminderItem
 } from './supabaseClient'
 
 let syncTimeout: NodeJS.Timeout | null = null
+let pollInterval: NodeJS.Timeout | null = null
 let lastSyncTime: string | null = null
 let lastSyncStatus: 'idle' | 'syncing' | 'success' | 'error' = 'idle'
 let lastSyncError: string | null = null
+
 
 // 기본 모바일 호스팅 주소 (GitHub Pages)
 export const DEFAULT_HOSTING_URL = 'https://sksu123.github.io/widjet/'
@@ -108,6 +112,7 @@ export async function disableCloudSync(): Promise<boolean> {
 
   const db = getDb()
   db.prepare("DELETE FROM settings WHERE key = 'cloud_sync_key'").run()
+  stopCloudSyncLoop()
   lastSyncStatus = 'idle'
   lastSyncTime = null
   lastSyncError = null
@@ -125,17 +130,20 @@ export function buildSnapshotAndReminders(): {
   const today = getKstDateString()
   const nowUtc = new Date().toISOString()
 
-  // 1) 오늘(당일) 진행 중인 schedules 조회 (PC 대시보드와 동일하게 start_date = today)
+  // 1) 모바일 날짜 탐색을 위한 schedules 조회 (과거 30일 ~ 미래 90일)
   let schedules: any[] = []
   try {
+    const fromDate = getKstDateString(-30)
+    const toDate = getKstDateString(90)
     schedules = db
       .prepare(
         `SELECT id, title, description, start_date, end_date, category, color, is_all_day, is_completed, is_dday
          FROM schedules
-         WHERE start_date = ?
+         WHERE (start_date >= ? AND start_date <= ?)
+            OR (end_date IS NOT NULL AND end_date >= ? AND start_date <= ?)
          ORDER BY is_completed ASC, start_date ASC, id ASC`
       )
-      .all(today)
+      .all(fromDate, toDate, fromDate, toDate)
   } catch (e) {
     console.error('Error querying schedules for snapshot:', e)
   }
@@ -171,17 +179,20 @@ export function buildSnapshotAndReminders(): {
     console.error('Error parsing custom_ddays for snapshot:', e)
   }
 
-  // 3) 오늘(당일) 행정달력 일정 (admin_schedules)
+  // 3) 모바일 날짜 탐색을 위한 행정달력 일정 (admin_schedules) (과거 30일 ~ 미래 90일)
   let adminSchedules: any[] = []
   try {
+    const fromDate = getKstDateString(-30)
+    const toDate = getKstDateString(90)
     adminSchedules = db
       .prepare(
         `SELECT id, title, category, date, end_date, is_deadline
          FROM admin_schedules
-         WHERE date = ?
-         ORDER BY is_deadline DESC, id ASC`
+         WHERE (date >= ? AND date <= ?)
+            OR (end_date IS NOT NULL AND end_date >= ? AND date <= ?)
+         ORDER BY is_deadline DESC, date ASC, id ASC`
       )
-      .all(today)
+      .all(fromDate, toDate, fromDate, toDate)
   } catch (e) {
     // 테이블 없을 시 안전 무시
   }
@@ -283,7 +294,79 @@ export function buildSnapshotAndReminders(): {
 }
 
 /**
- * 즉시 동기화 실행
+ * 모바일에서 입력된 새 일정 가져와서 로컬 DB에 저장
+ */
+export async function pullAndApplyMobileInputs(): Promise<number> {
+  const key = getCloudSyncKey()
+  if (!key) return 0
+
+  try {
+    const items = await getPendingMobileInputsFromCloud(key)
+    if (!items || items.length === 0) return 0
+
+    const db = getDb()
+    const stmt = db.prepare(`
+      INSERT INTO schedules (title, start_date, category, color, is_all_day, is_completed)
+      VALUES (?, ?, ?, '#3b82f6', 1, 0)
+    `)
+
+    let appliedCount = 0
+    db.transaction(() => {
+      for (const item of items) {
+        if (!item.title) continue
+        stmt.run(item.title.trim(), item.start_date || getKstDateString(), item.category || 'general')
+        appliedCount++
+      }
+    })()
+
+    if (appliedCount > 0) {
+      console.log(`📥 Applied ${appliedCount} mobile inputs to local DB`)
+      // PC 프론트엔드 UI 즉시 갱신 신호 발송
+      BrowserWindow.getAllWindows().forEach((win) => {
+        try {
+          win.webContents.send('calendar:updated')
+        } catch (e) {}
+      })
+      // 최신 스냅샷 다시 업로드
+      triggerCloudSync()
+    }
+    return appliedCount
+  } catch (err) {
+    console.warn('Failed to pull mobile inputs:', err)
+    return 0
+  }
+}
+
+/**
+ * 백그라운드 모바일 입력 폴링 루프 시작 (20초 주기)
+ */
+export function startCloudSyncLoop(): void {
+  if (pollInterval) return
+
+  // 즉시 1회 실행
+  pullAndApplyMobileInputs().catch(() => {})
+
+  // 20초마다 새 모바일 입력 확인
+  pollInterval = setInterval(() => {
+    const key = getCloudSyncKey()
+    if (key) {
+      pullAndApplyMobileInputs().catch(() => {})
+    }
+  }, 20000)
+}
+
+/**
+ * 백그라운드 모바일 입력 폴링 루프 중지
+ */
+export function stopCloudSyncLoop(): void {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
+
+/**
+ * 즉시 동기화 실행 (모바일 입력 먼저 수신 후 스냅샷 푸시)
  */
 export async function syncCloudNow(): Promise<{ success: boolean; error?: string }> {
   const key = getCloudSyncKey()
@@ -293,6 +376,10 @@ export async function syncCloudNow(): Promise<{ success: boolean; error?: string
 
   lastSyncStatus = 'syncing'
   try {
+    // 1) 모바일에서 등록된 새 일정이 있으면 먼저 로컬 DB로 수신
+    await pullAndApplyMobileInputs()
+
+    // 2) 최신 로컬 데이터를 스냅샷으로 빌드하여 클라우드로 푸시
     const { payload, reminders } = buildSnapshotAndReminders()
     await pushSnapshotToCloud(key, payload, reminders)
 
