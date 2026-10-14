@@ -1110,8 +1110,10 @@
 
     function renderTodos() {
       todoList.innerHTML = '';
-      const schedules = appState.schedules || [];
-      const adminList = appState.adminSchedules || [];
+      const today = appState.today || '';
+      // 오늘 날짜와 일치하지 않는 다른 날의 일정/행정은 철저히 배제
+      const schedules = (appState.schedules || []).filter(s => !today || !s.start_date || s.start_date === today);
+      const adminList = (appState.adminSchedules || []).filter(a => !today || !a.date || a.date === today);
 
       const completedCount = schedules.filter(s => s.is_completed === 1).length;
       if (adminList.length > 0) {

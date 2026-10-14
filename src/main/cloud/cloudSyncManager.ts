@@ -125,17 +125,17 @@ export function buildSnapshotAndReminders(): {
   const today = getKstDateString()
   const nowUtc = new Date().toISOString()
 
-  // 1) 오늘(당일) 진행 중인 schedules 조회
+  // 1) 오늘(당일) 진행 중인 schedules 조회 (PC 대시보드와 동일하게 start_date = today)
   let schedules: any[] = []
   try {
     schedules = db
       .prepare(
         `SELECT id, title, description, start_date, end_date, category, color, is_all_day, is_completed, is_dday
          FROM schedules
-         WHERE start_date = ? OR (start_date <= ? AND end_date IS NOT NULL AND end_date >= ?)
+         WHERE start_date = ?
          ORDER BY is_completed ASC, start_date ASC, id ASC`
       )
-      .all(today, today, today)
+      .all(today)
   } catch (e) {
     console.error('Error querying schedules for snapshot:', e)
   }
@@ -178,10 +178,10 @@ export function buildSnapshotAndReminders(): {
       .prepare(
         `SELECT id, title, category, date, end_date, is_deadline
          FROM admin_schedules
-         WHERE date = ? OR (date <= ? AND end_date IS NOT NULL AND end_date >= ?)
+         WHERE date = ?
          ORDER BY is_deadline DESC, id ASC`
       )
-      .all(today, today, today)
+      .all(today)
   } catch (e) {
     // 테이블 없을 시 안전 무시
   }
@@ -225,9 +225,19 @@ export function buildSnapshotAndReminders(): {
     const curNotifyIso = getKst8AmUtcIso(curDateStr)
     if (curNotifyIso <= nowUtc) continue
 
-    const dayItems = schedules.filter(
-      (s) => s.start_date === curDateStr && s.is_completed !== 1
-    )
+    let dayItems: any[] = []
+    if (offset === 0) {
+      dayItems = schedules.filter((s) => s.is_completed !== 1)
+    } else {
+      try {
+        dayItems = db
+          .prepare(
+            'SELECT title FROM schedules WHERE start_date = ? AND (is_completed IS NULL OR is_completed = 0)'
+          )
+          .all(curDateStr)
+      } catch (e) {}
+    }
+
     if (dayItems.length > 0) {
       const summaryTitles = dayItems.map((s) => s.title).slice(0, 3).join(', ')
       const moreCount = dayItems.length > 3 ? ` 외 ${dayItems.length - 3}건` : ''
@@ -239,18 +249,27 @@ export function buildSnapshotAndReminders(): {
     }
   }
 
-  // (3) 행정달력 마감일 알림: 마감 당일 오전 8시 KST
-  for (const a of adminSchedules) {
-    if (!a.date) continue
-    const notifyIso = getKst8AmUtcIso(a.date)
-    if (notifyIso > nowUtc) {
-      reminders.push({
-        notify_at: notifyIso,
-        title: `📋 [행정마감일] ${a.title}`,
-        body: `오늘 마감 예정 업무: [${a.category || '행정'}] ${a.title}`
-      })
+  // (3) 행정달력 마감일 알림: 향후 7일간 마감 당일 오전 8시 KST
+  try {
+    const futureDeadlines = db
+      .prepare(
+        `SELECT title, category, date FROM admin_schedules 
+         WHERE is_deadline = 1 AND date >= ? AND date <= ?`
+      )
+      .all(today, getKstDateString(7)) as any[]
+
+    for (const a of futureDeadlines) {
+      if (!a.date) continue
+      const notifyIso = getKst8AmUtcIso(a.date)
+      if (notifyIso > nowUtc) {
+        reminders.push({
+          notify_at: notifyIso,
+          title: `📋 [행정마감일] ${a.title}`,
+          body: `오늘 마감 예정 업무: [${a.category || '행정'}] ${a.title}`
+        })
+      }
     }
-  }
+  } catch (e) {}
 
   return {
     payload: {
