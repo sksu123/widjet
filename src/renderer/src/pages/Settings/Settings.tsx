@@ -172,6 +172,18 @@ useEffect(() => {
     setTimeout(() => setCopiedCloudUrl(false), 2000)
   }
 
+  function handleCopyCloudKey() {
+    if (!cloudStatus?.key) return
+    const key = cloudStatus.key
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(key)
+    } else if (window.api?.system?.writeClipboard) {
+      window.api.system.writeClipboard(key)
+    }
+    setCopiedCloudKey(true)
+    setTimeout(() => setCopiedCloudKey(false), 2000)
+  }
+
   async function handleSaveHostingUrl() {
     if (!hostingUrlInput.trim()) return
     if (window.api && (window.api as any).cloud?.setHostingUrl) {
