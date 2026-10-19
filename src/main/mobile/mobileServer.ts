@@ -428,6 +428,78 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       }
     }
 
+    // 행정 일정 완료 상태 토글 (PATCH /api/admin-schedules/:id/toggle)
+    const adminToggleMatch = pathname.match(/^\/api\/admin-schedules\/(\d+)\/toggle$/)
+    if (adminToggleMatch && req.method === 'PATCH') {
+      try {
+        const id = Number(adminToggleMatch[1])
+        const body = await readRequestBody(req)
+        const isCompleted = typeof body.is_completed === 'number' ? body.is_completed : 1
+
+        db.prepare('UPDATE admin_schedules SET is_completed = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(isCompleted, id)
+
+        broadcastMobileUpdate()
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true }))
+        return
+      } catch (err: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: err.message }))
+        return
+      }
+    }
+
+    // 행정 일정 수정 (PUT or PATCH /api/admin-schedules/:id)
+    const adminUpdateMatch = pathname.match(/^\/api\/admin-schedules\/(\d+)$/)
+    if (adminUpdateMatch && (req.method === 'PUT' || req.method === 'PATCH')) {
+      try {
+        const id = Number(adminUpdateMatch[1])
+        const body = await readRequestBody(req)
+        const title = (body.title || '').trim()
+        const category = body.category || '행정'
+        const date = body.date || getKstDateString()
+        const endDate = body.end_date || null
+        const isDeadline = (body.is_deadline === 1 || body.is_deadline === true) ? 1 : 0
+        const memo = body.memo || ''
+
+        db.prepare(`
+          UPDATE admin_schedules
+          SET title = ?, category = ?, date = ?, end_date = ?, is_deadline = ?, memo = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(title, category, date, endDate, isDeadline, memo, id)
+
+        broadcastMobileUpdate()
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true }))
+        return
+      } catch (err: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: err.message }))
+        return
+      }
+    }
+
+    // 행정 일정 삭제 (DELETE /api/admin-schedules/:id)
+    const adminDeleteMatch = pathname.match(/^\/api\/admin-schedules\/(\d+)$/)
+    if (adminDeleteMatch && req.method === 'DELETE') {
+      try {
+        const id = Number(adminDeleteMatch[1])
+        db.prepare('DELETE FROM admin_schedules WHERE id = ?').run(id)
+
+        broadcastMobileUpdate()
+
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true }))
+        return
+      } catch (err: any) {
+        res.writeHead(500, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: err.message }))
+        return
+      }
+    }
+
     // 새 D-DAY 추가 (POST /api/ddays)
     if (pathname === '/api/ddays' && req.method === 'POST') {
       try {

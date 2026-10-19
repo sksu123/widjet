@@ -24,7 +24,8 @@ const api = {
     update: (id: number, data: Record<string, unknown>) => ipcRenderer.invoke('admin-cal:update', id, data),
     delete: (id: number) => ipcRenderer.invoke('admin-cal:delete', id),
     deleteSimilar: (id: number) => ipcRenderer.invoke('admin-cal:delete-similar', id),
-    copyYear: (fromYear: number, toYear: number) => ipcRenderer.invoke('admin-cal:copy-year', fromYear, toYear)
+    copyYear: (fromYear: number, toYear: number) => ipcRenderer.invoke('admin-cal:copy-year', fromYear, toYear),
+    toggleComplete: (id: number, isCompleted?: number) => ipcRenderer.invoke('admin-cal:toggle-complete', id, isCompleted)
   },
 
   // 윈도우 컨트롤
@@ -171,6 +172,7 @@ const api = {
       ipcRenderer.on('updater:update-downloaded', (_, info) => callback(info))
     },
     getReleaseNotes: () => ipcRenderer.invoke('updater:get-release-notes'),
+    getVersion: () => ipcRenderer.invoke('updater:get-version'),
     openUrl: (url: string) => ipcRenderer.invoke('updater:open-url', url)
   },
 

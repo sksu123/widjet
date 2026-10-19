@@ -14,7 +14,9 @@ const targetDirs = [
 
 console.log('📦 Building static mobile PWA bundle for Cloud hosting...')
 
-const htmlContent = getMobileHtml('교행 보드', 'v2.0.58', 'cloud')
+const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'))
+const version = 'v' + (pkg.version || '2.0.61')
+const htmlContent = getMobileHtml('교행 보드', version, 'cloud')
 const manifestContent = getManifestJson()
 const swContent = getServiceWorkerJs()
 const srcIcon = path.join(rootDir, 'resources', 'icon.png')

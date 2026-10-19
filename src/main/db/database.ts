@@ -226,6 +226,7 @@ function createTables(): void {
   
   // 마이그레이션
   try { db.exec(`ALTER TABLE schedules ADD COLUMN is_completed INTEGER DEFAULT 0;`) } catch (e) { /* ignore */ }
+  try { db.exec(`ALTER TABLE admin_schedules ADD COLUMN is_completed INTEGER DEFAULT 0;`) } catch (e) { /* ignore */ }
   
   // 연락처 마이그레이션 (기존 컬럼 없으면 추가)
   try { db.exec(`ALTER TABLE contacts ADD COLUMN type TEXT DEFAULT 'staff';`) } catch (e) { /* ignore */ }

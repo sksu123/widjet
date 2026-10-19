@@ -13,11 +13,24 @@ import PdfWorkshop from './pages/PdfWorkshop/PdfWorkshop'
 
 import Automation from './pages/Automation/Automation'
 import Favorites from './pages/Favorites/Favorites'
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import Settings from './pages/Settings/Settings'
+import { UpdateModal } from './components/UpdateModal/UpdateModal'
 
 export default function App() {
+  const [updateModalOpen, setUpdateModalOpen] = useState(false)
+  const [currentVersion, setCurrentVersion] = useState('2.0.59')
+  const [newVersion, setNewVersion] = useState('')
+  const [releaseNotes, setReleaseNotes] = useState('')
+
   useEffect(() => {
+    // 현재 앱 버전 로드
+    if ((window.api as any)?.updater?.getVersion) {
+      ;(window.api as any).updater.getVersion().then((v: string) => {
+        if (v) setCurrentVersion(v)
+      }).catch(() => {})
+    }
+
     // 초기 설정 로드 및 적용
     window.api.db.getSettings().then((res) => {
       if (res.success) {
@@ -40,12 +53,27 @@ export default function App() {
       }
     })
 
-    // IPC Notification Listener (native notification 사용으로 렌더러 측 처리 불필요)
+    // 업데이트 다운로드 완료 리스너 -> 모달 팝업 오픈
     if (window.api.updater) {
-      window.api.updater.onUpdateDownloaded((info) => {
-        if (confirm(`교행 보드 새로운 버전(v${info.version})이 다운로드되었습니다.\n확인을 클릭하면 프로그램을 자동으로 완전 종료시키고 업데이트된 프로그램을 다시 설치합니다.`)) {
-          window.api.updater.quitAndInstall()
+      window.api.updater.onUpdateDownloaded(async (info: any) => {
+        const targetVer = info?.version || ''
+        setNewVersion(targetVer)
+        
+        // 릴리스 노트 로드
+        try {
+          const res = await (window.api as any).updater.getReleaseNotes()
+          if (res && res.success && res.data && res.data.length > 0) {
+            // 새 버전에 해당하는 릴리스 노트가 있으면 사용, 없으면 가장 최신 릴리스 노트
+            const found = res.data.find((r: any) => r.tagName?.includes(targetVer)) || res.data[0]
+            if (found && found.body) {
+              setReleaseNotes(found.body)
+            }
+          }
+        } catch (e) {
+          console.error('릴리스 노트 조회 실패:', e)
         }
+
+        setUpdateModalOpen(true)
       })
     }
   }, [])
@@ -70,6 +98,19 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
+      <UpdateModal
+        isOpen={updateModalOpen}
+        currentVersion={currentVersion}
+        newVersion={newVersion}
+        releaseNotes={releaseNotes}
+        onConfirm={() => {
+          setUpdateModalOpen(false)
+          if (window.api.updater?.quitAndInstall) {
+            window.api.updater.quitAndInstall()
+          }
+        }}
+        onClose={() => setUpdateModalOpen(false)}
+      />
     </HashRouter>
   )
 }

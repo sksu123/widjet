@@ -257,12 +257,176 @@
       color: white;
     }
 
-    .hidden-date-picker {
-      position: absolute;
+    .date-center-wrap {
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      padding: 4px 8px;
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    .date-center-wrap:active {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* 모바일 전용 달력 선택 팝업 모달 */
+    .cal-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      padding: 16px;
       opacity: 0;
-      width: 0;
-      height: 0;
       pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .cal-modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .cal-modal-card {
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 18px;
+      width: 100%;
+      max-width: 330px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .cal-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .cal-month-nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cal-nav-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .cal-nav-btn:active {
+      background: rgba(59, 130, 246, 0.3);
+    }
+    .cal-month-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .cal-grid-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      padding-bottom: 4px;
+    }
+    .cal-grid-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .cal-day-cell {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.03);
+      color: #f1f5f9;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+    }
+    .cal-day-cell:active {
+      background: #3b82f6;
+      color: #fff;
+    }
+    .cal-day-cell.today {
+      border-color: #3b82f6;
+      color: #60a5fa;
+      font-weight: 800;
+    }
+    .cal-day-cell.selected {
+      background: #3b82f6;
+      color: #fff;
+      font-weight: 800;
+      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+    }
+    .cal-day-cell.empty {
+      background: transparent;
+      cursor: default;
+      pointer-events: none;
+    }
+    .cal-day-cell.sunday {
+      color: #f87171;
+    }
+    .cal-day-cell.saturday {
+      color: #60a5fa;
+    }
+    .cal-modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .admin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-left: 4px solid var(--accent-purple);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .admin-card:active {
+      transform: scale(0.99);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .admin-card.completed {
+      opacity: 0.55;
+      background: rgba(30, 41, 59, 0.5);
+    }
+
+    .admin-card.completed .admin-title {
+      text-decoration: line-through;
+      color: #94a3b8;
+    }
+
+    .todo-item {
+      cursor: pointer;
     }
 
     .refresh-btn {
@@ -522,9 +686,9 @@
     }
 
     .checkbox-btn {
-      width: 22px;
-      height: 22px;
-      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
       border: 2px solid #64748b;
       background: transparent;
       cursor: pointer;
@@ -533,6 +697,8 @@
       justify-content: center;
       flex-shrink: 0;
       transition: all 0.2s;
+      touch-action: manipulation;
+      padding: 0;
     }
 
     .checkbox-btn.checked {
@@ -849,8 +1015,7 @@
     <!-- 날짜 네비게이션 바 -->
     <div class="date-bar">
       <button class="date-nav-btn" id="prevDayBtn" title="이전 날">◀</button>
-      <div class="date-center-wrap" id="dateCenterWrap" title="날짜 선택">
-        <input type="date" id="datePickerInput" class="hidden-date-picker" />
+      <div class="date-center-wrap" id="dateCenterWrap" title="달력 열기 (날짜 선택)">
         <div class="today-date" id="todayDateStr">📅 오늘 일정</div>
       </div>
       <button class="date-nav-btn" id="nextDayBtn" title="다음 날">▶</button>
@@ -926,6 +1091,100 @@
   
 
   
+
+  <!-- 일정 상세 및 수정/삭제 팝업 모달 (모바일 전용) -->
+  <div class="modal-backdrop" id="itemEditModal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <h2 style="font-size: 16px; font-weight: 700; color: #f8fafc; margin: 0; display: flex; align-items: center; gap: 6px;">
+          <span id="editModalIcon">✏️</span> <span id="editModalTitle">일정 상세 및 수정</span>
+        </h2>
+        <button type="button" id="closeEditModalBtn" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 4px;">✕</button>
+      </div>
+      <form class="modal-form" id="itemEditForm">
+        <input type="hidden" id="editItemId" />
+        <input type="hidden" id="editItemType" />
+        
+        <div class="form-group">
+          <label class="form-label">제목 *</label>
+          <input type="text" class="form-input" id="editTitleInput" required maxlength="100" />
+        </div>
+
+        <div class="form-group" id="editCatGroup">
+          <label class="form-label">카테고리</label>
+          <div class="cat-chips" id="editCatChips"></div>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">날짜 *</label>
+            <input type="date" class="form-input" id="editStartDateInput" required />
+          </div>
+          <div class="form-group" style="flex: 1;" id="editEndDateGroup">
+            <label class="form-label">마감/종료일</label>
+            <input type="date" class="form-input" id="editEndDateInput" />
+          </div>
+        </div>
+
+        <div class="form-group" id="editDeadlineGroup" style="display: flex; flex-direction: row; align-items: center; gap: 8px; margin-top: 4px;">
+          <input type="checkbox" id="editIsDeadlineInput" style="width: 18px; height: 18px; accent-color: #ef4444; cursor: pointer;" />
+          <label for="editIsDeadlineInput" style="font-size: 13px; color: #f87171; font-weight: 600; cursor: pointer;">
+            ⚑ 중요 마감일로 표시 (D-DAY 및 하이라이트)
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">메모 / 세부 내용</label>
+          <textarea class="form-input" id="editMemoInput" rows="3" placeholder="메모를 입력하세요..." style="resize: vertical; font-size: 13px;"></textarea>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 14px; display: flex; gap: 8px;">
+          <button type="button" id="deleteItemBtn" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 10px; font-weight: 600; flex: 0.8; cursor: pointer;">
+            🗑️ 삭제
+          </button>
+          <button type="button" class="btn-cancel" id="cancelEditBtn" style="flex: 0.8; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer;">
+            취소
+          </button>
+          <button type="submit" class="btn-save" style="flex: 1.2; border-radius: 8px; padding: 10px; font-weight: 600; cursor: pointer;">
+            ✓ 수정 저장
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 모바일 전용 달력 선택 팝업 모달 -->
+  <div class="cal-modal-overlay" id="datePickerModal">
+    <div class="cal-modal-card">
+      <div class="cal-modal-header">
+        <div class="cal-month-nav">
+          <button type="button" class="cal-nav-btn" id="calPrevMonthBtn" title="이전 달">◀</button>
+          <span class="cal-month-title" id="calMonthTitle">2026년 10월</span>
+          <button type="button" class="cal-nav-btn" id="calNextMonthBtn" title="다음 달">▶</button>
+        </div>
+        <button type="button" class="cal-nav-btn" id="closeDatePickerModalBtn" style="color: #94a3b8; font-size: 16px;">✕</button>
+      </div>
+
+      <div class="cal-grid-weekdays">
+        <span style="color: #ef4444;">일</span>
+        <span>월</span>
+        <span>화</span>
+        <span>수</span>
+        <span>목</span>
+        <span>금</span>
+        <span style="color: #3b82f6;">토</span>
+      </div>
+
+      <div class="cal-grid-days" id="calGridDays">
+        <!-- 1일 ~ 말일 동적 렌더링 -->
+      </div>
+
+      <div class="cal-modal-footer">
+        <button type="button" class="btn-cancel" id="calTodayJumpBtn" style="padding: 6px 14px; font-size: 12px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3);">오늘로 이동</button>
+        <button type="button" class="btn-cancel" id="calCloseBtn" style="padding: 6px 14px; font-size: 12px;">닫기</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 행정일정 추가 팝업 모달 (PC 행정달력과 동일) -->
   <div class="modal-backdrop" id="adminScheduleModal">
@@ -1048,7 +1307,7 @@
       isConnected: false
     };
 
-    let currentDate = ''; // 사용자가 현재 보고 있는 선택 날짜 (YYYY-MM-DD)
+    let currentDate = getKstToday(); // 사용자가 현재 보고 있는 선택 날짜 (항상 오늘 날짜 기본)
     let activeTab = 'todo';
 
     // DOM 요소
@@ -1101,7 +1360,7 @@
     }
 
     function changeDate(deltaDays) {
-      if (!currentDate) currentDate = appState.today || getKstToday();
+      if (!currentDate) currentDate = getKstToday();
       const parts = currentDate.split('-');
       const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
       d.setDate(d.getDate() + deltaDays);
@@ -1254,7 +1513,7 @@
 
     // 렌더링
     function render() {
-      if (!currentDate) currentDate = appState.today || getKstToday();
+      if (!currentDate) currentDate = getKstToday();
       renderDateBar();
       renderDdays();
       renderTodos();
@@ -1268,9 +1527,8 @@
         const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         const days = ['일', '월', '화', '수', '목', '금', '토'];
         const dayStr = days[dateObj.getDay()];
-        const isToday = targetDate === appState.today;
-        todayDateStr.innerHTML = '📅 ' + parts[0] + '.' + parts[1] + '.' + parts[2] + ' (' + dayStr + ')' +
-          (isToday ? ' <span style="font-size: 10px; background: rgba(59,130,246,0.3); color: #93c5fd; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">오늘</span>' : '');
+        const isToday = targetDate === getKstToday();
+        todayDateStr.innerHTML = '📅 ' + parts[0] + '.' + parts[1] + '.' + parts[2] + ' (' + dayStr + ')' + (isToday ? ' <span style="font-size: 10px; background: rgba(59,130,246,0.3); color: #93c5fd; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">오늘</span>' : '') + ' <span style="font-size: 10px; opacity: 0.6; margin-left: 2px;">▾</span>';
         
         if (datePickerInput) datePickerInput.value = targetDate;
         if (todayJumpBtn) todayJumpBtn.style.display = isToday ? 'none' : 'inline-block';
@@ -1330,9 +1588,127 @@
       });
     }
 
+    // 완료 토글 공통 함수
+    async function toggleItem(type, id, currentStatus) {
+      const nextVal = currentStatus ? 0 : 1;
+      if (type === 'admin') {
+        const found = (appState.adminSchedules || []).find(x => x.id === id);
+        if (found) found.is_completed = nextVal;
+      } else {
+        const found = (appState.schedules || []).find(x => x.id === id);
+        if (found) found.is_completed = nextVal;
+      }
+      renderTodos();
+
+      if (IS_CLOUD) {
+        if (cloudKey && cloudKey.length >= 16) {
+          try {
+            await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+              },
+              body: JSON.stringify({
+                p_key: cloudKey,
+                p_title: JSON.stringify({ action: 'toggle', type: type, id: id, nextVal: nextVal }),
+                p_date: currentDate || getKstToday(),
+                p_category: 'toggle'
+              })
+            });
+            showToast(nextVal === 1 ? '✓ 완료 처리되었습니다 (PC 동기화)' : '일정 완료가 취소되었습니다');
+          } catch(err) {
+            console.error('클라우드 토글 실패', err);
+          }
+        }
+      } else {
+        const endpoint = type === 'admin'
+          ? '/api/admin-schedules/' + id + '/toggle?token=' + encodeURIComponent(lanToken)
+          : '/api/schedules/' + id + '/toggle?token=' + encodeURIComponent(lanToken);
+        try {
+          await fetch(endpoint, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_completed: nextVal })
+          });
+          showToast(nextVal === 1 ? '✓ 완료 처리되었습니다' : '일정 완료가 취소되었습니다');
+        } catch(err) {
+          console.error('LAN 토글 실패', err);
+        }
+      }
+    }
+
+    // 일정 수정/삭제 모달 열기
+    let editSelectedCat = '행정';
+    function openEditModal(type, item) {
+      resetDeleteBtn();
+      const modal = document.getElementById('itemEditModal');
+      if (!modal) return;
+      document.getElementById('editItemId').value = item.id;
+      document.getElementById('editItemType').value = type;
+      document.getElementById('editTitleInput').value = item.title || '';
+      document.getElementById('editStartDateInput').value = (item.date || item.start_date || currentDate || getKstToday()).slice(0, 10);
+      document.getElementById('editEndDateInput').value = item.end_date ? String(item.end_date).slice(0, 10) : '';
+      document.getElementById('editMemoInput').value = item.memo || item.description || '';
+      
+      const deadlineCheck = document.getElementById('editIsDeadlineInput');
+      if (deadlineCheck) deadlineCheck.checked = (item.is_deadline === 1 || item.is_deadline === true);
+
+      // 카테고리 칩 렌더링
+      const chipsBox = document.getElementById('editCatChips');
+      editSelectedCat = item.category || '행정';
+      if (chipsBox) {
+        chipsBox.innerHTML = '';
+        ADMIN_CATEGORIES.forEach(c => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'cat-chip' + (c.value === editSelectedCat ? ' selected' : '');
+          btn.textContent = c.value;
+          if (c.value === editSelectedCat) {
+            btn.style.background = c.color;
+            btn.style.borderColor = c.color;
+          }
+          btn.addEventListener('click', () => {
+            editSelectedCat = c.value;
+            chipsBox.querySelectorAll('.cat-chip').forEach(b => {
+              b.className = 'cat-chip';
+              b.style.background = 'transparent';
+              b.style.borderColor = 'var(--card-border)';
+            });
+            btn.className = 'cat-chip selected';
+            btn.style.background = c.color;
+            btn.style.borderColor = c.color;
+          });
+          chipsBox.appendChild(btn);
+        });
+      }
+
+      document.getElementById('editModalTitle').textContent = type === 'admin' ? '행정 일정 수정 및 삭제' : '할 일 수정 및 삭제';
+      modal.classList.add('open');
+    }
+
+    let deleteConfirmPending = false;
+    function resetDeleteBtn() {
+      deleteConfirmPending = false;
+      const btn = document.getElementById('deleteItemBtn');
+      if (btn) {
+        btn.textContent = '🗑️ 삭제';
+        btn.style.background = 'rgba(239, 68, 68, 0.2)';
+        btn.style.color = '#f87171';
+        btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+      }
+    }
+
+    function closeEditModal() {
+      resetDeleteBtn();
+      const modal = document.getElementById('itemEditModal');
+      if (modal) modal.classList.remove('open');
+    }
+
     function renderTodos() {
       todoList.innerHTML = '';
-      const targetDate = currentDate || appState.today || getKstToday();
+      const targetDate = currentDate || getKstToday();
 
       // 선택된 날짜에 해당하는 행정실 일정/마감 필터링
       const adminList = (appState.adminSchedules || []).filter(a => {
@@ -1355,11 +1731,10 @@
         return !adminTitles.has(String(s.title || '').trim());
       });
 
-      const completedCount = schedules.filter(s => s.is_completed === 1).length;
-      if (adminList.length > 0) {
-        todoStats.textContent = '(' + completedCount + '/' + (schedules.length + adminList.length) + ' 항목 · 행정 ' + adminList.length + '건)';
-      } else if (schedules.length > 0) {
-        todoStats.textContent = '(' + completedCount + '/' + schedules.length + ' 완료)';
+      const completedCount = adminList.filter(a => a.is_completed === 1).length + schedules.filter(s => s.is_completed === 1).length;
+      const totalCount = adminList.length + schedules.length;
+      if (totalCount > 0) {
+        todoStats.textContent = '(' + completedCount + '/' + totalCount + ' 완료 · ' + (adminList.length > 0 ? '행정 ' + adminList.length + '건' : '') + ')';
       } else {
         todoStats.textContent = '';
       }
@@ -1369,13 +1744,14 @@
         return;
       }
 
-      // 1) 행정실 일정 상단 렌더링 (일반 일정 및 마감 일정 모두 충실히 렌더링)
+      // 1) 행정실 일정 렌더링
       if (adminList.length > 0) {
         adminList.forEach(a => {
           const item = document.createElement('div');
           const isDl = a.is_deadline === 1 || a.is_deadline === true;
-          item.className = 'admin-card' + (isDl ? ' deadline' : '');
-          item.style.marginBottom = '6px';
+          const isCompleted = a.is_completed === 1;
+          item.className = 'admin-card' + (isDl ? ' deadline' : '') + (isCompleted ? ' completed' : '');
+          item.style.marginBottom = '8px';
 
           const catInfo = ADMIN_CATEGORIES.find(c => c.value === a.category) || { value: a.category || '행정', color: '#ec4899' };
           const catColor = catInfo.color;
@@ -1384,7 +1760,7 @@
             item.style.borderLeftColor = catColor;
           }
 
-          const isTargetToday = targetDate === appState.today;
+          const isTargetToday = targetDate === getKstToday();
           const deadlineText = isTargetToday ? '오늘 마감' : '마감일';
           const deadlineTag = isDl ? '<span class="deadline-badge">⚑ ' + deadlineText + '</span>' : '';
           const categoryTag = '<span class="category-badge" style="background: ' + catColor + '20; color: ' + catColor + '; border: 1.5px solid ' + catColor + '50; font-weight: 700;">' + escapeHtml(catInfo.value) + '</span>';
@@ -1399,19 +1775,40 @@
             memoHtml = '<div style="font-size: 12px; color: #94a3b8; margin-top: 4px; line-height: 1.4; white-space: pre-wrap; background: rgba(0,0,0,0.2); padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">' + escapeHtml(String(a.memo).trim()) + '</div>';
           }
 
+          const checkIcon = isCompleted ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
+
           item.innerHTML = 
-            '<div class="admin-header">' +
-              '<div style="display: flex; align-items: center; gap: 6px;">' +
-                categoryTag +
-                deadlineTag +
+            '<div style="display: flex; align-items: flex-start; gap: 10px;">' +
+              '<button type="button" class="checkbox-btn ' + (isCompleted ? 'checked' : '') + '" style="margin-top: 2px;" title="완료 체크">' + checkIcon + '</button>' +
+              '<div style="flex: 1; min-width: 0;">' +
+                '<div class="admin-header">' +
+                  '<div style="display: flex; align-items: center; gap: 6px;">' +
+                    categoryTag +
+                    deadlineTag +
+                  '</div>' +
+                  (dateRangeHtml || '<span style="font-size: 11px; color: var(--text-muted);">학교행정 ✏️</span>') +
+                '</div>' +
+                '<div class="admin-title" style="margin-top: 5px;">' +
+                  (isDl ? '<span style="color: #ef4444; margin-right: 4px; font-weight: 700;">⚑</span>' : '<span style="color: ' + catColor + '; margin-right: 4px; font-weight: 700;">📋</span>') +
+                  escapeHtml(a.title) +
+                '</div>' +
+                memoHtml +
               '</div>' +
-              (dateRangeHtml || '<span style="font-size: 11px; color: var(--text-muted);">학교행정</span>') +
-            '</div>' +
-            '<div class="admin-title" style="margin-top: 5px;">' +
-              (isDl ? '<span style="color: #ef4444; margin-right: 4px; font-weight: 700;">⚑</span>' : '<span style="color: ' + catColor + '; margin-right: 4px; font-weight: 700;">📋</span>') +
-              escapeHtml(a.title) +
-            '</div>' +
-            memoHtml;
+            '</div>';
+
+          // 체크 버튼 클릭
+          const chk = item.querySelector('.checkbox-btn');
+          if (chk) {
+            chk.addEventListener('click', (e) => {
+              e.stopPropagation();
+              toggleItem('admin', a.id, isCompleted);
+            });
+          }
+
+          // 카드 본문 클릭 -> 수정/삭제 모달
+          item.addEventListener('click', () => {
+            openEditModal('admin', a);
+          });
             
           todoList.appendChild(item);
         });
@@ -1421,19 +1818,11 @@
       if (schedules.length > 0) {
         schedules.forEach(item => {
           const row = document.createElement('div');
-          row.className = 'todo-item' + (item.is_completed === 1 ? ' completed' : '');
           const isChecked = item.is_completed === 1;
+          row.className = 'todo-item' + (isChecked ? ' completed' : '');
 
           const checkIcon = isChecked ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : '';
-          const checkHtml = !IS_CLOUD
-            ? '<button class="checkbox-btn ' + (isChecked ? 'checked' : '') + '" data-id="' + item.id + '">' + checkIcon + '</button>'
-            : '<div class="checkbox-btn ' + (isChecked ? 'checked' : '') + '" style="cursor: default;">' + checkIcon + '</div>';
-
-          const deleteHtml = !IS_CLOUD
-            ? '<button class="todo-delete-btn" data-id="' + item.id + '" title="삭제">' +
-                '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
-              '</button>'
-            : '';
+          const checkHtml = '<button type="button" class="checkbox-btn ' + (isChecked ? 'checked' : '') + '" title="완료 체크">' + checkIcon + '</button>';
 
           row.innerHTML = 
             checkHtml +
@@ -1441,30 +1830,23 @@
               '<div class="todo-title">' + escapeHtml(item.title) + '</div>' +
               '<div class="todo-meta">' +
                 '<span class="category-badge">' + getCategoryName(item.category) + '</span>' +
+                '<span style="font-size: 10px; color: var(--text-muted);">✏️ 터치하여 수정</span>' +
               '</div>' +
-            '</div>' +
-            deleteHtml;
+            '</div>';
 
-          if (!IS_CLOUD) {
-            row.querySelector('.checkbox-btn')?.addEventListener('click', async () => {
-              const nextStatus = isChecked ? 0 : 1;
-              await fetch('/api/schedules/' + item.id + '/toggle?token=' + encodeURIComponent(lanToken), {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ is_completed: nextStatus })
-              });
-              item.is_completed = nextStatus;
-              renderTodos();
-            });
-
-            row.querySelector('.todo-delete-btn')?.addEventListener('click', async () => {
-              if (confirm('이 할 일을 삭제하시겠습니까?')) {
-                await fetch('/api/schedules/' + item.id + '?token=' + encodeURIComponent(lanToken), { method: 'DELETE' });
-                showToast('삭제되었습니다.');
-                loadData();
-              }
+          // 체크 클릭
+          const chk = row.querySelector('.checkbox-btn');
+          if (chk) {
+            chk.addEventListener('click', (e) => {
+              e.stopPropagation();
+              toggleItem('schedule', item.id, isChecked);
             });
           }
+
+          // 카드 클릭 -> 수정/삭제 모달
+          row.addEventListener('click', () => {
+            openEditModal('schedule', item);
+          });
 
           todoList.appendChild(row);
         });
@@ -1485,6 +1867,176 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // 일정 수정/삭제 모달 이벤트 바인딩
+    const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const deleteItemBtn = document.getElementById('deleteItemBtn');
+    const itemEditForm = document.getElementById('itemEditForm');
+
+    if (closeEditModalBtn) closeEditModalBtn.addEventListener('click', closeEditModal);
+    if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeEditModal);
+
+    // 삭제 실행
+    if (deleteItemBtn) {
+      deleteItemBtn.addEventListener('click', async () => {
+        if (!deleteConfirmPending) {
+          deleteConfirmPending = true;
+          deleteItemBtn.textContent = '⚠️ 정말 삭제? 클릭';
+          deleteItemBtn.style.background = '#ef4444';
+          deleteItemBtn.style.color = '#ffffff';
+          deleteItemBtn.style.borderColor = '#dc2626';
+          return;
+        }
+
+        const id = Number(document.getElementById('editItemId').value);
+        const type = document.getElementById('editItemType').value;
+        const title = document.getElementById('editTitleInput').value;
+
+        resetDeleteBtn();
+
+        // 낙관적 삭제
+        if (type === 'admin') {
+          appState.adminSchedules = (appState.adminSchedules || []).filter(x => x.id !== id);
+        } else {
+          appState.schedules = (appState.schedules || []).filter(x => x.id !== id);
+        }
+        closeEditModal();
+        renderTodos();
+
+        if (IS_CLOUD) {
+          if (cloudKey && cloudKey.length >= 16) {
+            try {
+              await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+                },
+                body: JSON.stringify({
+                  p_key: cloudKey,
+                  p_title: JSON.stringify({ action: 'delete', type: type, id: id, title: title }),
+                  p_date: currentDate || getKstToday(),
+                  p_category: 'delete'
+                })
+              });
+              showToast('🗑️ 삭제되었습니다 (PC 행정달력 반영)');
+            } catch(e) {
+              console.error(e);
+            }
+          }
+        } else {
+          const endpoint = type === 'admin'
+            ? '/api/admin-schedules/' + id + '?token=' + encodeURIComponent(lanToken)
+            : '/api/schedules/' + id + '?token=' + encodeURIComponent(lanToken);
+          try {
+            await fetch(endpoint, { method: 'DELETE' });
+            showToast('🗑️ 삭제되었습니다');
+          } catch(e) {
+            console.error(e);
+          }
+        }
+      });
+    }
+
+    // 수정 저장 실행
+    if (itemEditForm) {
+      itemEditForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = Number(document.getElementById('editItemId').value);
+        const type = document.getElementById('editItemType').value;
+        const title = document.getElementById('editTitleInput').value.trim();
+        const date = document.getElementById('editStartDateInput').value;
+        const endDate = document.getElementById('editEndDateInput').value || null;
+        const isDeadline = document.getElementById('editIsDeadlineInput').checked ? 1 : 0;
+        const memo = document.getElementById('editMemoInput').value.trim();
+        const category = editSelectedCat || '행정';
+
+        if (!title) return;
+
+        // 낙관적 업데이트
+        if (type === 'admin') {
+          const found = (appState.adminSchedules || []).find(x => x.id === id);
+          if (found) {
+            found.title = title;
+            found.date = date;
+            found.end_date = endDate;
+            found.category = category;
+            found.is_deadline = isDeadline;
+            found.memo = memo;
+          }
+        } else {
+          const found = (appState.schedules || []).find(x => x.id === id);
+          if (found) {
+            found.title = title;
+            found.start_date = date;
+            found.end_date = endDate;
+            found.category = category;
+            found.memo = memo;
+          }
+        }
+
+        closeEditModal();
+        renderTodos();
+
+        if (IS_CLOUD) {
+          if (cloudKey && cloudKey.length >= 16) {
+            try {
+              await fetch(SUPABASE_URL + '/rest/v1/rpc/add_mobile_schedule', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': SUPABASE_ANON_KEY,
+                  'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+                },
+                body: JSON.stringify({
+                  p_key: cloudKey,
+                  p_title: JSON.stringify({
+                    action: 'update',
+                    type: type,
+                    id: id,
+                    title: title,
+                    date: date,
+                    endDate: endDate,
+                    isDeadline: isDeadline === 1,
+                    category: category,
+                    memo: memo
+                  }),
+                  p_date: date,
+                  p_category: category
+                })
+              });
+              showToast('✅ 수정되었습니다 (PC 행정달력 반영)');
+            } catch(e) {
+              console.error(e);
+            }
+          }
+        } else {
+          const endpoint = type === 'admin'
+            ? '/api/admin-schedules/' + id + '?token=' + encodeURIComponent(lanToken)
+            : '/api/schedules/' + id + '?token=' + encodeURIComponent(lanToken);
+          try {
+            await fetch(endpoint, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                title: title,
+                date: date,
+                start_date: date,
+                end_date: endDate,
+                category: category,
+                is_deadline: isDeadline,
+                memo: memo
+              })
+            });
+            showToast('✅ 수정되었습니다');
+          } catch(e) {
+            console.error(e);
+          }
+        }
+      });
+    }
+
     // 날짜 네비게이션 이벤트 바인딩
     if (prevDayBtn) {
       prevDayBtn.addEventListener('click', () => changeDate(-1));
@@ -1498,24 +2050,105 @@
         render();
       });
     }
-    if (dateCenterWrap && datePickerInput) {
+    // ===== 모바일 전용 달력 모달 인터랙션 =====
+    let calViewYear = new Date().getFullYear();
+    let calViewMonth = new Date().getMonth() + 1;
+
+    function openDatePickerModal() {
+      const modal = document.getElementById('datePickerModal');
+      if (!modal) return;
+      const cur = currentDate || getKstToday();
+      const parts = cur.split('-');
+      calViewYear = parseInt(parts[0], 10) || new Date().getFullYear();
+      calViewMonth = parseInt(parts[1], 10) || (new Date().getMonth() + 1);
+      renderCalendarModal();
+      modal.classList.add('open');
+    }
+
+    function closeDatePickerModal() {
+      const modal = document.getElementById('datePickerModal');
+      if (modal) modal.classList.remove('open');
+    }
+
+    function renderCalendarModal() {
+      const titleEl = document.getElementById('calMonthTitle');
+      const gridEl = document.getElementById('calGridDays');
+      if (!titleEl || !gridEl) return;
+
+      titleEl.textContent = calViewYear + '년 ' + calViewMonth + '월';
+      gridEl.innerHTML = '';
+
+      const firstDay = new Date(calViewYear, calViewMonth - 1, 1).getDay();
+      const lastDate = new Date(calViewYear, calViewMonth, 0).getDate();
+      const todayStr = getKstToday();
+      const selectedStr = currentDate || todayStr;
+
+      for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'cal-day-cell empty';
+        gridEl.appendChild(emptyCell);
+      }
+
+      for (let day = 1; day <= lastDate; day++) {
+        const dateStr = calViewYear + '-' + String(calViewMonth).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const dayCell = document.createElement('button');
+        dayCell.type = 'button';
+        const dayOfWeek = (firstDay + day - 1) % 7;
+        
+        let cls = 'cal-day-cell';
+        if (dayOfWeek === 0) cls += ' sunday';
+        else if (dayOfWeek === 6) cls += ' saturday';
+        if (dateStr === todayStr) cls += ' today';
+        if (dateStr === selectedStr) cls += ' selected';
+
+        dayCell.className = cls;
+        dayCell.textContent = String(day);
+
+        dayCell.addEventListener('click', () => {
+          setDate(dateStr);
+          closeDatePickerModal();
+        });
+
+        gridEl.appendChild(dayCell);
+      }
+    }
+
+    if (dateCenterWrap) {
       dateCenterWrap.addEventListener('click', () => {
-        if (datePickerInput.showPicker) {
-          try {
-            datePickerInput.showPicker();
-          } catch(e) {
-            datePickerInput.click();
-          }
-        } else {
-          datePickerInput.click();
-        }
-      });
-      datePickerInput.addEventListener('change', (e) => {
-        if (e.target.value) {
-          setDate(e.target.value);
-        }
+        openDatePickerModal();
       });
     }
+
+    document.getElementById('calPrevMonthBtn')?.addEventListener('click', () => {
+      if (calViewMonth === 1) {
+        calViewYear--;
+        calViewMonth = 12;
+      } else {
+        calViewMonth--;
+      }
+      renderCalendarModal();
+    });
+
+    document.getElementById('calNextMonthBtn')?.addEventListener('click', () => {
+      if (calViewMonth === 12) {
+        calViewYear++;
+        calViewMonth = 1;
+      } else {
+        calViewMonth++;
+      }
+      renderCalendarModal();
+    });
+
+    document.getElementById('calTodayJumpBtn')?.addEventListener('click', () => {
+      setDate(getKstToday());
+      closeDatePickerModal();
+    });
+
+    document.getElementById('closeDatePickerModalBtn')?.addEventListener('click', closeDatePickerModal);
+    document.getElementById('calCloseBtn')?.addEventListener('click', closeDatePickerModal);
+    document.getElementById('datePickerModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'datePickerModal') closeDatePickerModal();
+    });
 
     // 빠른 일정/할 일 추가 (2단계: 모바일 ➔ PC 양방향 연동)
     if (quickAddForm) {
@@ -1947,8 +2580,14 @@
       });
     }
 
-    // 초기 로드
+    // 초기 로드 및 15초 주기 백그라운드 자동 동기화 (PC와의 양방향 변경사항 실시간 반영)
     loadData();
+    setInterval(() => {
+      const isAnyModalOpen = document.querySelector('.modal-backdrop.open, .cal-modal-overlay.open');
+      if (!isAnyModalOpen) {
+        loadData();
+      }
+    }, 15000);
   </script>
 </body>
 </html>

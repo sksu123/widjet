@@ -14,6 +14,8 @@ import { StickyNote, MemoData } from '../../components/StickyNote'
 import FavoritesWidget from '../../components/FavoritesWidget/FavoritesWidget'
 import DdayPanel from '../../components/DdayPanel/DdayPanel'
 import { RegionSelector } from '../../components/RegionSelector'
+import ScheduleModal from '../Calendar/ScheduleModal'
+import type { AdminSchedule } from '../../types/api'
 
 interface WeatherData {
   city: string; temp: number | string; compareYm: string;
@@ -111,6 +113,58 @@ export default function Dashboard() {
   // 행정달력 일정
   const [adminMonthSchedules, setAdminMonthSchedules] = useState<{id:number;title:string;date:string;category:string;is_deadline:number}[]>([])
   const [adminTodaySchedules, setAdminTodaySchedules] = useState<{id:number;title:string;date:string;category:string;is_deadline:number}[]>([])
+
+  // 행정일정 추가/수정 팝업 모달
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false)
+  const [selectedAdminSchedule, setSelectedAdminSchedule] = useState<AdminSchedule | null>(null)
+  const [defaultScheduleDate, setDefaultScheduleDate] = useState('')
+
+  const refreshAdminSchedules = useCallback(async () => {
+    if (!window.api?.adminCal) return
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const [adminMonthRes, adminTodayRes] = await Promise.all([
+      window.api.adminCal.get(scheduleYear, scheduleMonth),
+      window.api.adminCal.getAll(new Date().getFullYear(), undefined, undefined)
+    ])
+    if (adminMonthRes.success) setAdminMonthSchedules(adminMonthRes.data as any[])
+    if (adminTodayRes.success) setAdminTodaySchedules((adminTodayRes.data as any[]).filter((s: any) => s.date === todayStr))
+  }, [scheduleYear, scheduleMonth])
+
+  const handleOpenAddSchedule = (dateStr: string) => {
+    setHoveredDay(null)
+    setSelectedAdminSchedule(null)
+    setDefaultScheduleDate(dateStr)
+    setScheduleModalOpen(true)
+  }
+
+  const handleOpenEditSchedule = (schedule: any) => {
+    setHoveredDay(null)
+    setSelectedAdminSchedule(schedule)
+    setDefaultScheduleDate(schedule.date)
+    setScheduleModalOpen(true)
+  }
+
+  const handleSaveSchedule = async (data: Record<string, unknown>) => {
+    if (!window.api?.adminCal) return
+    if (selectedAdminSchedule) {
+      await window.api.adminCal.update(selectedAdminSchedule.id, data)
+    } else {
+      await window.api.adminCal.add(data)
+    }
+    setScheduleModalOpen(false)
+    await refreshAdminSchedules()
+  }
+
+  const handleDeleteSchedule = async (id: number, similar?: boolean) => {
+    if (!window.api?.adminCal) return
+    if (similar) {
+      await window.api.adminCal.deleteSimilar(id)
+    } else {
+      await window.api.adminCal.delete(id)
+    }
+    setScheduleModalOpen(false)
+    await refreshAdminSchedules()
+  }
 
   // 연락처 검색
   const [contacts, setContacts] = useState<{id: number; type: 'staff'|'company'; name: string; department?: string; ceo_name?: string; phone: string; mobile?: string; email: string; note: string}[]>([])
@@ -418,6 +472,18 @@ export default function Dashboard() {
     }
   }
 
+  const toggleAdminSchedule = async (id: number, currentCompleted: number) => {
+    const nextVal = currentCompleted === 1 ? 0 : 1
+    setAdminTodaySchedules(prev => prev.map(s => s.id === id ? { ...s, is_completed: nextVal } : s))
+    setAdminMonthSchedules(prev => prev.map(s => s.id === id ? { ...s, is_completed: nextVal } : s))
+    if ((window.api as any).adminCal?.toggleComplete) {
+      await (window.api as any).adminCal.toggleComplete(id, nextVal)
+    }
+    if ((window.api as any).mobile?.notifyChange) {
+      (window.api as any).mobile.notifyChange()
+    }
+  }
+
   const weatherIcon = (icon: string) => {
     if (icon?.includes('01')) return <Sun size={32} className="text-yellow-400" />
     if (icon?.includes('09') || icon?.includes('10')) return <CloudRain size={32} className="text-blue-400" />
@@ -573,7 +639,7 @@ export default function Dashboard() {
                     }}
                     onClick={() => {
                       if (!isCurrentMonth) return
-                      navigate('/calendar', { state: { addScheduleDate: format(day, 'yyyy-MM-dd') } })
+                      handleOpenAddSchedule(format(day, 'yyyy-MM-dd'))
                     }}
                     onMouseEnter={(e) => {
                       if (!isCurrentMonth) return
@@ -626,14 +692,31 @@ export default function Dashboard() {
                         </div>
                       ))}
                       {/* 행정달력 일정 */}
-                      {showAdminScheduleInCalendar && dayAdminSchedules.slice(0, 2).map((s, i) => (
-                        <div key={`adm-${i}`} className="truncate px-1.5 py-0.5 rounded"
-                          style={{ background: s.is_deadline === 1 ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.12)', color: s.is_deadline === 1 ? '#ef4444' : '#d97706', fontSize: '10px', fontWeight: 600 }}>
-                          {s.is_deadline === 1 ? '⚑ ' : '📋 '}{s.title}
-                        </div>
-                      ))}
+                      {showAdminScheduleInCalendar && dayAdminSchedules.slice(0, 2).map((s, i) => {
+                        const isCompleted = s.is_completed === 1
+                        return (
+                          <div key={`adm-${i}`} 
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenEditSchedule(s)
+                            }}
+                            className={`truncate px-1.5 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity ${isCompleted ? 'line-through opacity-40' : ''}`}
+                            title="클릭하여 일정 수정"
+                            style={{ background: s.is_deadline === 1 ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.12)', color: s.is_deadline === 1 ? '#ef4444' : '#d97706', fontSize: '10px', fontWeight: 600 }}>
+                            {s.is_deadline === 1 ? '⚑ ' : '📋 '}{s.title}
+                          </div>
+                        )
+                      })}
                       {showAdminScheduleInCalendar && dayAdminSchedules.length > 2 && (
-                        <div style={{ fontSize: '9px', color: '#d97706', paddingLeft: 2 }}>+{dayAdminSchedules.length - 2}개 행정</div>
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenAddSchedule(format(day, 'yyyy-MM-dd'))
+                          }}
+                          className="cursor-pointer hover:underline"
+                          style={{ fontSize: '9px', color: '#d97706', paddingLeft: 2 }}>
+                          +{dayAdminSchedules.length - 2}개 행정
+                        </div>
                       )}
                     </div>
                   </div>
@@ -904,12 +987,20 @@ export default function Dashboard() {
                     {/* 행정달력 오늘 일정 */}
                     {adminTodaySchedules.map((s) => {
                       const catColor = getAdminCategoryColor(s.category)
+                      const isCompleted = s.is_completed === 1
                       return (
                         <div key={`adm-${s.id}`} className="flex items-center gap-3 p-2.5 rounded-lg border transition-all"
                           style={{ borderColor: s.is_deadline === 1 ? 'rgba(239,68,68,0.3)' : `${catColor}44`, background: s.is_deadline === 1 ? 'rgba(239,68,68,0.05)' : `${catColor}11` }}>
+                          <button onClick={() => toggleAdminSchedule(s.id, s.is_completed || 0)}
+                            className="flex-shrink-0 focus:outline-none transition-transform hover:scale-110 active:scale-90"
+                            title={isCompleted ? '완료 취소' : '완료 체크'}>
+                            {isCompleted
+                              ? <CheckCircle2 size={18} className="text-emerald-500" /> 
+                              : <Circle size={18} className="text-slate-400 transition-colors" />}
+                          </button>
                           <span style={{ fontSize: 14, color: s.is_deadline === 1 ? '#ef4444' : catColor }}>{s.is_deadline === 1 ? '⚑' : '📋'}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate" style={{ color: s.is_deadline === 1 ? '#ef4444' : 'var(--text-primary)' }}>
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => handleOpenEditSchedule(s)} title="클릭하여 일정 수정">
+                            <p className={`text-xs font-medium truncate ${isCompleted ? 'line-through opacity-50' : ''}`} style={{ color: s.is_deadline === 1 ? '#ef4444' : 'var(--text-primary)' }}>
                               <span className="font-bold mr-1 opacity-80" style={{ color: catColor }}>[{s.category}]</span>
                               {s.title}
                             </p>
@@ -1327,6 +1418,16 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* 행정일정 추가/수정 팝업 모달 */}
+      <ScheduleModal
+        isOpen={scheduleModalOpen}
+        schedule={selectedAdminSchedule}
+        defaultDate={defaultScheduleDate}
+        onSave={handleSaveSchedule}
+        onDelete={handleDeleteSchedule}
+        onClose={() => setScheduleModalOpen(false)}
+      />
 
     </div>
     </>

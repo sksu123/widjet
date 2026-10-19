@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import type { AdminSchedule } from '../../types/api'
 
@@ -128,7 +129,7 @@ export default function ScheduleModal({
     display: 'block',
   }
 
-  return (
+  return createPortal(
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
@@ -140,7 +141,7 @@ export default function ScheduleModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
+        zIndex: 99999,
       }}
     >
       <div
@@ -393,6 +394,7 @@ export default function ScheduleModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

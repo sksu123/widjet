@@ -13,6 +13,7 @@ export default function Automation() {
 
   // 멀티 클립보드 히스토리
   const [clipboardHistory, setClipboardHistory] = useState<{ id: string; text: string; time: number }[]>([])
+  const [confirmClear, setConfirmClear] = useState(false)
   
   const loadClipboardHistory = async () => {
     try {
@@ -29,11 +30,11 @@ export default function Automation() {
     return () => clearInterval(interval)
   }, [])
   
-  const clearHistory = async () => {
-    if(confirm('클립보드 히스토리를 모두 지우시겠습니까?')) {
-      await (window as any).api.system.clearClipboardHistory()
-      loadClipboardHistory()
-    }
+  const handleClearHistory = async () => {
+    await (window as any).api.system.clearClipboardHistory()
+    setClipboardHistory([])
+    setConfirmClear(false)
+    loadClipboardHistory()
   }
   
   const copyHistoryItem = async (text: string) => {
@@ -191,9 +192,32 @@ export default function Automation() {
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>최근 복사한 항목 20개를 순서대로 보관하여 빠르게 붙여넣으세요.</p>
             </div>
           </div>
-          <button onClick={clearHistory} className="text-[10px] flex items-center gap-1 text-red-500 px-2 py-1 rounded transition-colors" style={{ background: 'rgba(239,68,68,0.1)' }}>
-            <Trash2 size={12} /> 비우기
-          </button>
+          {confirmClear ? (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-red-500 font-medium">전체 삭제할까요?</span>
+              <button 
+                onClick={handleClearHistory} 
+                className="text-[10px] font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded shadow-sm transition-all"
+              >
+                삭제
+              </button>
+              <button 
+                onClick={() => setConfirmClear(false)} 
+                className="text-[10px] px-1.5 py-0.5 rounded border transition-all"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+              >
+                취소
+              </button>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setConfirmClear(true)} 
+              className="text-[10px] flex items-center gap-1 text-red-500 px-2 py-1 rounded transition-colors" 
+              style={{ background: 'rgba(239,68,68,0.1)' }}
+            >
+              <Trash2 size={12} /> 비우기
+            </button>
+          )}
         </div>
         
         <div className="border rounded-xl overflow-hidden shadow-sm flex flex-col" style={{ borderColor: 'var(--border)', background: 'var(--bg-card)', minHeight: '400px', flex: 1 }}>

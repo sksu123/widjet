@@ -187,6 +187,18 @@ export function registerAdminCalendarHandlers(): void {
     return { success: true }
   })
 
+  // 일정 완료 상태 토글
+  ipcMain.handle('admin-cal:toggle-complete', async (_, id: number, isCompleted?: number) => {
+    const db = getDb()
+    if (typeof isCompleted === 'number') {
+      db.prepare('UPDATE admin_schedules SET is_completed = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(isCompleted ? 1 : 0, id)
+    } else {
+      db.prepare('UPDATE admin_schedules SET is_completed = CASE WHEN is_completed = 1 THEN 0 ELSE 1 END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id)
+    }
+    triggerCloudSync()
+    return { success: true }
+  })
+
   // 일정 삭제
   ipcMain.handle('admin-cal:delete', async (_, id: number) => {
     const db = getDb()

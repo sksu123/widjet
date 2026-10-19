@@ -27,7 +27,7 @@ export default function Settings() {
   // 업데이트 상태: 'idle' | 'checking' | 'latest' | 'available' | 'error'
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available' | 'error' | 'downloaded'>('idle')
   const [updateInfo, setUpdateInfo] = useState<string>('')
-  const [appVersion, setAppVersion] = useState('v2.0.58')
+  const [appVersion, setAppVersion] = useState('v2.0.59')
   // 릴리스 노트 상태
   const [releases, setReleases] = useState<ReleaseNoteItem[]>([])
   const [selectedReleaseIndex, setSelectedReleaseIndex] = useState(0)
@@ -79,7 +79,11 @@ useEffect(() => {
     loadData()
     loadMobileStatus()
     loadCloudStatus()
-    if ((window.api as any).system && (window.api as any).system.getVersion) {
+    if ((window.api as any)?.updater?.getVersion) {
+      ;(window.api as any).updater.getVersion().then((v: string) => {
+        if (v) setAppVersion(v.startsWith('v') ? v : 'v' + v)
+      }).catch(() => {})
+    } else if ((window.api as any).system && (window.api as any).system.getVersion) {
       (window.api as any).system.getVersion().then((res: any) => {
         if(res && res.version) setAppVersion('v' + res.version)
       })
@@ -992,47 +996,19 @@ useEffect(() => {
       )}
       {activeTab === 'version' && (
         <div className="card space-y-6">
-          {/* ===== 버전 정보 ===== */}
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>교행 보드</h3>
-                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  {appVersion}
-                </span>
-              </div>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                학교 행정실 업무 보조 올인원 데스크톱 위젯 (Electron + React + Gemini AI)
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                if ((window.api as any)?.updater?.openUrl) {
-                  (window.api as any).updater.openUrl('https://github.com/sksu123/widjet/releases')
-                } else {
-                  window.open('https://github.com/sksu123/widjet/releases', '_blank')
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-              style={{
-                background: 'rgba(100,116,139,0.1)',
-                color: 'var(--text-muted)',
-                border: '1px solid rgba(100,116,139,0.2)'
-              }}
-            >
-              <ExtLink size={12} />
-              GitHub 저장소
-            </button>
-          </div>
-
-          <div className="divider" />
-
           {/* ===== 업데이트 확인 ===== */}
           <div>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <label className="label">업데이트 확인</label>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+                    업데이트 확인
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                    현재 버전 {appVersion.startsWith('v') ? appVersion : `v${appVersion}`}
+                  </span>
+                </div>
+                <p className="text-sm mt-1 font-medium leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                   {updateStatus === 'idle' && '업데이트 확인 버튼을 눌러 최신 버전이 있는지 확인하세요.'}
                   {updateStatus === 'checking' && '⏳ 업데이트를 확인 중입니다...'}
                   {updateStatus === 'latest' && '✓ 현재 최신 버전을 사용 중입니다.'}
@@ -1041,7 +1017,7 @@ useEffect(() => {
                   {updateStatus === 'error' && `❌ 확인 실패: ${updateInfo}`}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={async () => {
                     setUpdateStatus('checking')
@@ -1078,17 +1054,17 @@ useEffect(() => {
                     }
                   }}
                   disabled={updateStatus === 'checking' || updateStatus === 'available'}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm"
                   style={{
-                    background: (updateStatus === 'checking' || updateStatus === 'available') ? 'rgba(100,116,139,0.1)' : 'rgba(59,130,246,0.1)',
-                    color: (updateStatus === 'checking' || updateStatus === 'available') ? 'var(--text-muted)' : '#60a5fa',
+                    background: (updateStatus === 'checking' || updateStatus === 'available') ? 'rgba(100,116,139,0.1)' : 'var(--accent-blue, #3b82f6)',
+                    color: (updateStatus === 'checking' || updateStatus === 'available') ? 'var(--text-muted)' : '#ffffff',
                     border: '1px solid',
-                    borderColor: (updateStatus === 'checking' || updateStatus === 'available') ? 'rgba(100,116,139,0.2)' : 'rgba(59,130,246,0.2)',
+                    borderColor: (updateStatus === 'checking' || updateStatus === 'available') ? 'rgba(100,116,139,0.2)' : 'transparent',
                     opacity: (updateStatus === 'checking' || updateStatus === 'available') ? 0.7 : 1,
                     cursor: (updateStatus === 'checking' || updateStatus === 'available') ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  <RefreshCw size={12} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
+                  <RefreshCw size={14} className={updateStatus === 'checking' ? 'animate-spin' : ''} />
                   업데이트 확인
                 </button>
 
@@ -1099,9 +1075,9 @@ useEffect(() => {
                         (window.api as any).updater.quitAndInstall()
                       }
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md active:scale-95"
                   >
-                    <Download size={12} />
+                    <Download size={14} />
                     지금 재시작하여 설치
                   </button>
                 )}
@@ -1115,8 +1091,8 @@ useEffect(() => {
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Sparkles size={16} className="text-amber-400" />
-                <h4 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                <Sparkles size={18} className="text-amber-400" />
+                <h4 className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
                   GitHub 릴리스 노트 (업데이트 내역)
                 </h4>
               </div>
@@ -1126,8 +1102,12 @@ useEffect(() => {
                   <select
                     value={selectedReleaseIndex}
                     onChange={(e) => setSelectedReleaseIndex(Number(e.target.value))}
-                    className="input text-xs py-1 px-2 h-7"
-                    style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+                    className="input text-sm py-1.5 px-3 h-8 rounded-lg font-medium"
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-primary)',
+                      borderColor: 'var(--border)'
+                    }}
                   >
                     {releases.map((rel, idx) => (
                       <option key={idx} value={idx}>
@@ -1138,58 +1118,59 @@ useEffect(() => {
                 )}
 
                 <button
-                  onClick={() => {
-                    const current = releases[selectedReleaseIndex]
-                    if (current && current.body) {
-                      navigator.clipboard.writeText(current.body)
-                      setCopiedReleaseNote(true)
-                      setTimeout(() => setCopiedReleaseNote(false), 2000)
-                    }
-                  }}
-                  disabled={releases.length === 0}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded text-xs transition-colors"
-                  style={{
-                    background: 'rgba(100,116,139,0.15)',
-                    color: copiedReleaseNote ? '#4ade80' : 'var(--text-muted)',
-                    border: '1px solid rgba(100,116,139,0.25)'
-                  }}
-                  title="릴리스 노트 마크다운 내용 복사"
-                >
-                  {copiedReleaseNote ? <Check size={12} /> : <Copy size={12} />}
-                  <span>{copiedReleaseNote ? '복사됨!' : '내용 복사'}</span>
-                </button>
-
-                <button
                   onClick={() => loadReleaseNotes()}
                   disabled={loadingReleases}
-                  className="p-1 rounded text-xs transition-colors hover:bg-slate-700/40"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="p-1.5 rounded-lg text-sm transition-colors border flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    borderColor: 'var(--border)',
+                    color: 'var(--text-secondary)'
+                  }}
                   title="릴리스 정보 새로고침"
                 >
-                  <RefreshCw size={13} className={loadingReleases ? 'animate-spin' : ''} />
+                  <RefreshCw size={15} className={loadingReleases ? 'animate-spin' : ''} />
                 </button>
               </div>
             </div>
 
             {loadingReleases && releases.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400 border border-slate-700/50 rounded-xl bg-slate-900/40">
-                <RefreshCw size={16} className="animate-spin mx-auto mb-2 text-blue-400" />
-                GitHub 릴리스 노트를 불러오는 중입니다...
+              <div
+                className="p-10 text-center text-sm border rounded-xl"
+                style={{
+                  background: 'var(--bg-secondary)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <RefreshCw size={20} className="animate-spin mx-auto mb-2.5 text-blue-500" />
+                <p className="font-medium">GitHub 릴리스 노트를 불러오는 중입니다...</p>
               </div>
             ) : releases.length > 0 ? (
-              <div className="border border-slate-700/60 rounded-xl bg-slate-900/60 overflow-hidden">
+              <div
+                className="border rounded-xl overflow-hidden shadow-sm"
+                style={{
+                  background: 'var(--bg-card)',
+                  borderColor: 'var(--border)'
+                }}
+              >
                 {/* 릴리스 헤더 */}
-                <div className="px-4 py-3 border-b border-slate-700/60 flex items-center justify-between bg-slate-800/40">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-xs text-white">
+                <div
+                  className="px-5 py-3.5 border-b flex items-center justify-between"
+                  style={{
+                    background: 'var(--bg-secondary)',
+                    borderColor: 'var(--border)'
+                  }}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
                       {releases[selectedReleaseIndex]?.name || releases[selectedReleaseIndex]?.tagName}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-mono">
+                    <span className="text-xs px-2 py-0.5 rounded font-mono font-bold bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30">
                       {releases[selectedReleaseIndex]?.tagName}
                     </span>
                   </div>
                   {releases[selectedReleaseIndex]?.publishedAt && (
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                       {new Date(releases[selectedReleaseIndex].publishedAt).toLocaleDateString('ko-KR', {
                         year: 'numeric',
                         month: 'long',
@@ -1200,19 +1181,51 @@ useEffect(() => {
                 </div>
 
                 {/* 릴리스 본문 (마크다운) */}
-                <div className="p-4 max-h-[380px] overflow-y-auto text-xs leading-relaxed text-slate-200 space-y-2 select-text">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <div
+                  className="p-5 max-h-[420px] overflow-y-auto text-sm leading-relaxed space-y-2 select-text"
+                  style={{
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({ ...props }: any) => <h1 className="text-lg font-bold mt-4 mb-2 pb-1 border-b" style={{ color: 'var(--text-primary)', borderColor: 'var(--border)' }} {...props} />,
+                      h2: ({ ...props }: any) => <h2 className="text-base font-bold mt-3 mb-1.5" style={{ color: 'var(--text-primary)' }} {...props} />,
+                      h3: ({ ...props }: any) => <h3 className="text-sm font-bold mt-3 mb-1 text-blue-500 dark:text-blue-400" {...props} />,
+                      h4: ({ ...props }: any) => <h4 className="text-sm font-bold mt-2.5 mb-1" style={{ color: 'var(--text-primary)' }} {...props} />,
+                      p: ({ ...props }: any) => <p className="text-sm leading-relaxed mb-2 font-normal" style={{ color: 'var(--text-primary)' }} {...props} />,
+                      ul: ({ ...props }: any) => <ul className="list-disc list-inside space-y-1.5 my-2 pl-2" style={{ color: 'var(--text-primary)' }} {...props} />,
+                      ol: ({ ...props }: any) => <ol className="list-decimal list-inside space-y-1.5 my-2 pl-2" style={{ color: 'var(--text-primary)' }} {...props} />,
+                      li: ({ ...props }: any) => <li className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }} {...props} />,
+                      strong: ({ ...props }: any) => <strong className="font-bold text-amber-500 dark:text-amber-300" {...props} />,
+                      code: ({ inline, ...props }: any) => inline ? (
+                        <code className="px-1.5 py-0.5 rounded text-xs font-mono font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/20" {...props} />
+                      ) : (
+                        <code className="block p-3 rounded-lg text-xs font-mono bg-black/40 text-emerald-400 overflow-x-auto border border-white/10 my-2" {...props} />
+                      ),
+                      a: ({ ...props }: any) => <a className="text-blue-500 dark:text-blue-400 underline font-medium hover:opacity-80" target="_blank" rel="noreferrer" {...props} />,
+                      blockquote: ({ ...props }: any) => <blockquote className="border-l-4 border-blue-500 pl-3 py-1 my-2 italic opacity-90" style={{ color: 'var(--text-secondary)' }} {...props} />
+                    }}
+                  >
                     {releases[selectedReleaseIndex]?.body || '상세 릴리스 노트 내용이 없습니다.'}
                   </ReactMarkdown>
                 </div>
               </div>
             ) : (
-              <div className="p-6 text-center text-xs text-slate-400 border border-slate-700/50 rounded-xl bg-slate-900/40">
-                <FileText size={20} className="mx-auto mb-1.5 text-slate-500" />
-                <p>릴리스 노트를 불러올 수 없습니다. [업데이트 확인]을 누르거나 인터넷 연결을 확인하세요.</p>
+              <div
+                className="p-8 text-center text-sm border rounded-xl space-y-2"
+                style={{
+                  background: 'var(--bg-secondary)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text-secondary)'
+                }}
+              >
+                <FileText size={24} className="mx-auto text-slate-400" />
+                <p className="font-medium">릴리스 노트를 불러올 수 없습니다. [업데이트 확인]을 누르거나 인터넷 연결을 확인하세요.</p>
                 <button
                   onClick={() => loadReleaseNotes()}
-                  className="mt-2 text-xs text-blue-400 hover:underline"
+                  className="inline-block mt-2 text-sm font-semibold text-blue-500 hover:underline"
                 >
                   다시 시도
                 </button>

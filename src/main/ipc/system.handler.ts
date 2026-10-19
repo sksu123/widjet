@@ -40,6 +40,7 @@ export function registerSystemHandlers(): void {
 
   ipcMain.handle('system:clear-clipboard-history', () => {
     clipboardHistory = [];
+    lastClipboardText = '';
     return { success: true };
   });
 

@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Bot, BookOpen, Calculator, CalendarDays, FileText,
-  CreditCard, Package, Zap, Settings, ChevronRight, BookUser, FolderHeart, FileEdit, Search, Layers
+  CreditCard, Package, Zap, Settings, ChevronRight, BookUser, FolderHeart, FileEdit, Search, Layers,
+  PanelLeftClose
 } from 'lucide-react'
 
 const navItems = [
@@ -18,7 +19,11 @@ const navItems = [
   { to: '/pdf-workshop', icon: Layers, label: 'PDF 공작소', color: '#6366f1' },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  onToggle?: () => void
+}
+
+export default function Sidebar({ onToggle }: SidebarProps) {
   return (
     <aside
       className="w-56 flex-shrink-0 flex flex-col py-3 overflow-y-auto overflow-x-hidden"
@@ -30,7 +35,21 @@ export default function Sidebar() {
     >
       {/* 네비게이션 */}
       <nav className="flex-1 px-2 space-y-0.5">
-        <p className="section-title px-2 mb-2 mt-1" style={{ color: 'var(--text-sidebar)', letterSpacing: '0.08em' }}>메뉴</p>
+        <div className="flex items-center justify-between px-2 mb-2 mt-1">
+          <p className="section-title m-0 p-0" style={{ color: 'var(--text-sidebar)', letterSpacing: '0.08em' }}>
+            메뉴
+          </p>
+          {onToggle && (
+            <button
+              onClick={onToggle}
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold transition-all bg-blue-500/15 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-500/30 shadow-xs cursor-pointer"
+              title="왼쪽 메뉴 숨기기"
+            >
+              <PanelLeftClose size={12} />
+              <span>숨기기</span>
+            </button>
+          )}
+        </div>
         {navItems.map(({ to, icon: Icon, label, color }) => {
           return (
             <NavLink

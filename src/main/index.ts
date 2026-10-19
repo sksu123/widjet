@@ -194,8 +194,27 @@ ipcMain.handle('updater:check', async () => {
   }
 })
 
+ipcMain.handle('updater:get-version', () => {
+  return app.getVersion()
+})
+
 ipcMain.handle('updater:install', () => {
-  autoUpdater.quitAndInstall(true, true)
+  try {
+    stopMobileServer()
+    app.removeAllListeners('window-all-closed')
+    BrowserWindow.getAllWindows().forEach((w) => {
+      try {
+        w.removeAllListeners('close')
+        w.destroy()
+      } catch (e) {}
+    })
+    autoUpdater.quitAndInstall(false, true)
+  } catch (err) {
+    console.error('quitAndInstall failed:', err)
+    setTimeout(() => {
+      app.exit(0)
+    }, 1000)
+  }
 })
 
 // GitHub Releases API로부터 릴리스 노트 목록 조회
@@ -225,6 +244,25 @@ ipcMain.handle('updater:get-release-notes', async () => {
 
   // API 호출 실패 시 (네트워크 오류, rate limit, 아직 릴리스 생성 전 등) 최신 릴리스 기본 fallback 제공
   const fallback = [
+    {
+      tagName: 'v2.0.59',
+      name: '교행 보드 v2.0.59 - 버전 업데이트 화면 개선 & 모달 알림 및 가독성 향상',
+      publishedAt: new Date().toISOString(),
+      htmlUrl: 'https://github.com/sksu123/widjet/releases',
+      body: `### 🌟 v2.0.59 주요 업데이트 내역
+
+#### 1. 🔔 새 버전 알림 팝업 모달 신규 추가
+- 브라우저 기본 경고창 대신 깔끔하고 세련된 전용 업데이트 팝업 모달 제공
+- 현재 버전과 새 버전 비교 및 릴리스 노트 마크다운 상세 열람 지원
+- 사용자가 [지금 업데이트 및 재시작] 또는 [나중에 하기]를 손쉽게 선택 가능
+
+#### 2. ⚡ 안전한 자동 업데이트 완전 종료 보장
+- 업데이트 설치 시 백그라운드나 트레이 잔류 없이 모든 프로세스를 안전하게 종료하고 자동 설치 진행
+
+#### 3. 🎨 환경설정 '버전 업데이트' 및 메뉴 가독성 대폭 향상
+- 상단 불필요한 소개 영역 제거 및 '업데이트 확인' 옆 현재 버전 뱃지 표시
+- 글씨 크기 확대(text-sm) 및 밝은 테마/다크 테마 20가지 색상 고대비 최적화`
+    },
     {
       tagName: 'v2.0.58',
       name: '교행 보드 v2.0.58 - 외부 네트워크 모바일 연동 & 릴리스 노트 조회',

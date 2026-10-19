@@ -184,7 +184,7 @@ export function buildSnapshotAndReminders(): {
   try {
     adminSchedules = db
       .prepare(
-        `SELECT id, title, category, date, end_date, is_deadline, memo
+        `SELECT id, title, category, date, end_date, is_deadline, memo, is_completed
          FROM admin_schedules
          ORDER BY is_deadline DESC, date ASC, id ASC`
       )
@@ -321,28 +321,72 @@ export async function pullAndApplyMobileInputs(): Promise<number> {
         let isDeadline = (item.is_deadline === 1 || item.is_deadline === true) ? 1 : 0
         let memo = item.memo || ''
 
+        let targetId: number | undefined
+        let actionType = item.target_type || 'admin'
+        let parsedNextVal: number | undefined
+
         // 1) 만약 title이 JSON 형식({ ... })으로 패킹된 경우 상세 메타데이터 언패킹
         if (title.startsWith('{') && title.endsWith('}')) {
           try {
             const parsed = JSON.parse(title)
-            if (parsed.title) {
-              title = String(parsed.title).trim()
-              if (parsed.endDate !== undefined) endDate = parsed.endDate || null
-              if (parsed.isDeadline !== undefined) isDeadline = parsed.isDeadline ? 1 : 0
-              if (parsed.memo !== undefined) memo = parsed.memo || ''
-              if (parsed.category) category = parsed.category
-              if (parsed.date) date = parsed.date
-            }
+            if (parsed.action) actionType = parsed.action
+            if (parsed.id) targetId = Number(parsed.id)
+            if (parsed.nextVal !== undefined) parsedNextVal = Number(parsed.nextVal)
+            if (parsed.title) title = String(parsed.title).trim()
+            if (parsed.endDate !== undefined) endDate = parsed.endDate || null
+            if (parsed.isDeadline !== undefined) isDeadline = parsed.isDeadline ? 1 : 0
+            if (parsed.memo !== undefined) memo = parsed.memo || ''
+            if (parsed.category) category = parsed.category
+            if (parsed.date) date = parsed.date
           } catch (e) {
             // 일반 텍스트인 경우 그대로 사용
           }
+        }
+
+        if (actionType === 'toggle' || actionType === 'toggle_admin') {
+          const tid = targetId || Number(item.memo || item.title)
+          if (tid) {
+            if (parsedNextVal !== undefined) {
+              const val = parsedNextVal ? 1 : 0
+              db.prepare('UPDATE admin_schedules SET is_completed = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(val, tid)
+              db.prepare('UPDATE schedules SET is_completed = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(val, tid)
+            } else {
+              db.prepare('UPDATE admin_schedules SET is_completed = CASE WHEN is_completed = 1 THEN 0 ELSE 1 END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(tid)
+              db.prepare('UPDATE schedules SET is_completed = CASE WHEN is_completed = 1 THEN 0 ELSE 1 END, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(tid)
+            }
+            appliedCount++
+          }
+          continue
+        }
+
+        if (actionType === 'delete') {
+          const tid = targetId || Number(item.memo || item.title)
+          if (tid) {
+            db.prepare('DELETE FROM admin_schedules WHERE id = ?').run(tid)
+            db.prepare('DELETE FROM schedules WHERE id = ?').run(tid)
+            appliedCount++
+          }
+          continue
+        }
+
+        if (actionType === 'update') {
+          const tid = targetId || Number(item.memo)
+          if (tid) {
+            db.prepare(`
+              UPDATE admin_schedules
+              SET title = ?, category = ?, date = ?, end_date = ?, is_deadline = ?, memo = ?, updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).run(title, category, date, endDate, isDeadline, memo, tid)
+            appliedCount++
+          }
+          continue
         }
 
         if (category === 'general' || !category) {
           category = '행정'
         }
 
-        // 모바일에서 입력한 간편할일 및 행정일정 모두 admin_schedules(행정 달력)에 등록
+        // 모바일에서 입력한 신규 일정 admin_schedules(행정 달력)에 등록
         adminStmt.run(title, category, date, endDate, isDeadline, memo)
         appliedCount++
       }
